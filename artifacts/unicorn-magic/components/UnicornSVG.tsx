@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Stop } from 'react-native-svg';
 
 type Zone = 'body' | 'mane' | 'horn' | 'tail';
 
@@ -19,17 +19,11 @@ interface UnicornSVGProps {
   showWings?: boolean;
 }
 
-// Lisa Frank rainbow palette — drawn back-to-front on mane and tail
-const MANE_RAINBOW  = ['#ff9de2', '#ff6eb4', '#c77dff', '#74b5ff', '#4dd9ac', '#ffda5c'];
-const TAIL_RAINBOW  = ['#c77dff', '#74b5ff', '#4dd9ac', '#8bdd4e', '#ffda5c'];
+// Lisa Frank rainbow palette — drawn back-to-front
+const MANE_RAINBOW = ['#ff9de2', '#ff6eb4', '#c77dff', '#74b5ff', '#4dd9ac', '#ffda5c'];
+const TAIL_RAINBOW = ['#c77dff', '#74b5ff', '#4dd9ac', '#8bdd4e', '#ffda5c'];
 
-export default function UnicornSVG({
-  colors,
-  mode,
-  sparkles,
-  onZonePress,
-  showWings,
-}: UnicornSVGProps) {
+export default function UnicornSVG({ colors, mode, sparkles, onZonePress, showWings }: UnicornSVGProps) {
   const isPaint = mode === 'paint';
 
   const bodyFill = isPaint ? '#f2eeff' : colors.body;
@@ -39,7 +33,6 @@ export default function UnicornSVG({
   const stroke   = isPaint ? '#CECBF6' : 'none';
   const sw       = isPaint ? 1.5 : 0;
 
-  // In dress mode → rainbow stripe; in paint mode → flat zone color
   const mC = (i: number) => isPaint ? maneFill : MANE_RAINBOW[i % MANE_RAINBOW.length];
   const tC = (i: number) => isPaint ? tailFill  : TAIL_RAINBOW[i  % TAIL_RAINBOW.length];
 
@@ -51,381 +44,379 @@ export default function UnicornSVG({
   return (
     <View style={styles.container}>
       {/*
-        ViewBox 0 0 360 305  |  rendered 295 × 250
-        Unicorn faces RIGHT.
-        Draw order: tail → back-legs → body → front-legs → hooves
-                  → neck → [mane-back] → head → ear → horn
-                  → [mane-front] → eye → details
-      */}
-      <Svg viewBox="0 0 360 305" width={295} height={250}>
+        ViewBox 0 0 370 310  |  rendered 295 × 248
+        Unicorn faces RIGHT.  Ground ≈ y=295.
+        Anatomy: elegant horse silhouette — long neck, proper torso path, slender legs.
 
-        {/* ═══════════════  TAIL  ═══════════════════════════════════════ */}
-        {/* 5 rainbow layers, outermost (purple) to innermost (yellow)    */}
+        Draw order:
+          tail strands → far (back) legs → body torso → neck →
+          mane back layers → head → ear → horn →
+          near front legs → mane forelock → eye + details
+      */}
+      <Svg viewBox="0 0 370 310" width={295} height={248}>
+        <Defs>
+          <LinearGradient id="hornGrad" x1="0" y1="1" x2="1" y2="0">
+            <Stop offset="0" stopColor="#d4a800" />
+            <Stop offset="1" stopColor="#fff9a0" />
+          </LinearGradient>
+        </Defs>
+
+        {/* ════════════════════  TAIL  ════════════════════════════════════
+            Long flowing strands from rump (≈68, 205).
+            Outermost layer first (widest arc), innermost last.          */}
+
+        {/* Layer 0 — deepest purple, widest sweep */}
         <Path
-          d="M 68,175 C 16,164 -2,220 14,258 C 25,288 53,297 69,274
-             C 81,254 79,222 68,184 Z"
+          d="M 68,200 C 28,200 -4,234 3,266 C 10,294 46,302 76,284
+             C 54,292 24,282 20,262 C 14,234 45,208 68,205 Z"
           fill={tC(0)} {...T}
         />
+        {/* Layer 1 — blue */}
         <Path
-          d="M 62,177 C 28,180 14,222 24,252 C 32,270 54,272 64,258
-             C 52,268 36,260 32,245 C 24,224 36,185 62,182 Z"
+          d="M 68,203 C 34,208 7,238 12,266 C 18,288 48,296 74,279
+             C 54,286 30,276 26,258 C 21,236 48,215 68,207 Z"
           fill={tC(1)} {...T}
         />
+        {/* Layer 2 — teal */}
         <Path
-          d="M 54,179 C 30,194 22,222 28,248 C 34,262 48,262 58,250
-             C 46,258 36,250 34,236 C 30,215 40,190 54,184 Z"
+          d="M 67,206 C 38,215 14,242 19,266 C 25,284 50,290 72,275
+             C 54,282 36,272 32,256 C 28,238 50,220 67,210 Z"
           fill={tC(2)} {...T}
         />
+        {/* Layer 3 — green */}
         <Path
-          d="M 46,181 C 30,198 26,222 30,245 C 34,257 46,257 54,247
-             C 44,255 37,247 36,234 C 32,214 38,196 46,186 Z"
+          d="M 66,209 C 42,220 22,246 26,266 C 31,282 52,286 70,272
+             C 54,278 40,268 37,254 C 34,238 50,224 66,213 Z"
           fill={tC(3)} {...T}
         />
+        {/* Layer 4 — yellow, innermost */}
         <Path
-          d="M 38,183 C 28,200 26,222 30,242 C 34,252 44,252 48,244
-             C 40,250 34,243 33,232 C 30,214 33,198 38,188 Z"
+          d="M 65,212 C 46,223 30,247 34,265 C 38,279 54,282 68,270
+             C 54,276 43,267 41,254 C 38,240 50,226 65,215 Z"
           fill={tC(4)} {...T}
         />
-        {/* Tint overlay (dress mode) so zone-colour affects the tail    */}
+        {/* Tail tint overlay (dress mode) */}
         {!isPaint && (
           <Path
-            d="M 68,175 C 16,164 -2,220 14,258 C 25,288 53,297 69,274
-               C 81,254 79,222 68,184 Z"
-            fill={tailFill} fillOpacity={0.28}
-            onPress={() => onZonePress('tail')}
+            d="M 68,200 C 28,200 -4,234 3,266 C 10,294 46,302 76,284
+               C 54,292 24,282 20,262 C 14,234 45,208 68,205 Z"
+            fill={tailFill} fillOpacity={0.26} onPress={() => onZonePress('tail')}
           />
         )}
-        {/* Sheen */}
+        {/* Tail sheen */}
+        {!isPaint && (
+          <Path d="M 58,208 C 26,228 12,260 22,282"
+            stroke="white" strokeWidth={5} strokeOpacity={0.28} strokeLinecap="round" fill="none" />
+        )}
+
+        {/* ════════════════════  FAR (back) LEGS  ════════════════════════
+            Drawn before body so body overlaps their tops — creates depth. */}
+
+        {/* Far hind leg */}
+        <Path
+          d="M 90,218 C 87,245 85,268 87,288 C 89,296 101,296 103,288
+             C 105,268 104,245 100,218 Z"
+          fill={bodyFill} fillOpacity={0.82} {...B}
+        />
+        {/* Far front leg */}
+        <Path
+          d="M 214,205 C 211,232 209,258 211,280 C 213,289 225,289 227,280
+             C 229,258 228,232 222,205 Z"
+          fill={bodyFill} fillOpacity={0.82} {...B}
+        />
+
+        {/* ════════════════════  BODY  ════════════════════════════════════
+            Proper horse torso — elongated, tapered at both ends.
+            Withers (top-front) → back line → rump → belly → chest      */}
+        <Path
+          d="M 254,130
+             C 215,114 166,110 122,114
+             C 96,118 78,132 70,150
+             C 61,170 60,194 65,210
+             C 96,232 164,238 232,228
+             C 250,224 264,212 266,192
+             C 268,166 264,142 254,130 Z"
+          fill={bodyFill} {...B}
+        />
+        {/* Body top highlight */}
         {!isPaint && (
           <Path
-            d="M 64,182 C 38,194 26,228 36,256"
-            stroke="white" strokeWidth={5} strokeOpacity={0.3}
-            strokeLinecap="round" fill="none"
+            d="M 138,142 C 168,124 218,120 256,136 C 220,118 166,122 138,142 Z"
+            fill="white" fillOpacity={0.48} onPress={() => onZonePress('body')}
           />
         )}
-
-        {/* ═══════════════  BACK LEGS  ══════════════════════════════════ */}
-        <Path
-          d="M 122,257 C 118,270 116,287 118,298 C 120,304 134,304 136,298
-             C 138,287 136,270 129,257 Z"
-          fill={bodyFill} {...B}
-        />
-        <Path
-          d="M 93,257 C 89,270 87,287 89,298 C 91,304 106,304 108,298
-             C 110,287 108,270 101,257 Z"
-          fill={bodyFill} {...B}
-        />
-        {!isPaint && (
-          <>
-            <Path d="M 97,260 C 94,272 93,288 96,297" stroke="white" strokeWidth={4} strokeOpacity={0.32} strokeLinecap="round" fill="none" />
-            <Path d="M 126,260 C 123,272 122,288 125,297" stroke="white" strokeWidth={4} strokeOpacity={0.32} strokeLinecap="round" fill="none" />
-          </>
-        )}
-
-        {/* ═══════════════  BODY  ═══════════════════════════════════════ */}
-        {/* Soft ground shadow */}
-        {!isPaint && (
-          <Ellipse cx={182} cy={272} rx={114} ry={9} fill="#534AB7" fillOpacity={0.07} />
-        )}
-        {/* Main body */}
-        <Ellipse cx={182} cy={202} rx={120} ry={76} fill={bodyFill} {...B} />
-        {/* Top highlight */}
-        {!isPaint && (
-          <>
-            <Path
-              d="M 138,150 C 162,132 210,131 246,144 C 214,127 160,129 138,150 Z"
-              fill="white" fillOpacity={0.5}
-              onPress={() => onZonePress('body')}
-            />
-            <Ellipse cx={180} cy={164} rx={42} ry={22}
-              fill="white" fillOpacity={0.2}
-              onPress={() => onZonePress('body')}
-            />
-          </>
-        )}
-        {/* Belly shading */}
+        {/* Subtle belly shading */}
         {!isPaint && (
           <Path
-            d="M 80,248 C 110,264 272,264 292,248 C 272,260 110,260 80,248 Z"
-            fill="#534AB7" fillOpacity={0.05}
-            onPress={() => onZonePress('body')}
+            d="M 80,240 C 120,254 210,254 256,240 C 210,250 120,250 80,240 Z"
+            fill="#534AB7" fillOpacity={0.05} onPress={() => onZonePress('body')}
           />
         )}
-
-        {/* ═══════════════  FRONT LEGS  ═════════════════════════════════ */}
-        <Path
-          d="M 217,254 C 213,267 211,284 213,295 C 215,301 229,301 231,295
-             C 233,284 231,267 224,254 Z"
-          fill={bodyFill} {...B}
-        />
-        <Path
-          d="M 245,252 C 241,265 239,282 241,293 C 243,299 258,299 260,293
-             C 262,282 260,265 252,252 Z"
-          fill={bodyFill} {...B}
-        />
+        {/* Ground shadow */}
         {!isPaint && (
-          <>
-            <Path d="M 221,257 C 218,269 217,285 220,294" stroke="white" strokeWidth={4} strokeOpacity={0.32} strokeLinecap="round" fill="none" />
-            <Path d="M 249,255 C 246,267 245,283 248,292" stroke="white" strokeWidth={4} strokeOpacity={0.32} strokeLinecap="round" fill="none" />
-          </>
+          <Ellipse cx={175} cy={296} rx={112} ry={8} fill="#534AB7" fillOpacity={0.06} />
         )}
 
-        {/* ═══════════════  HOOVES  ═════════════════════════════════════ */}
-        <Ellipse cx={99}  cy={301} rx={11} ry={5} fill="#AFA9EC" onPress={() => onZonePress('body')} />
-        <Ellipse cx={128} cy={301} rx={11} ry={5} fill="#AFA9EC" onPress={() => onZonePress('body')} />
-        <Ellipse cx={222} cy={298} rx={11} ry={5} fill="#AFA9EC" onPress={() => onZonePress('body')} />
-        <Ellipse cx={250} cy={296} rx={11} ry={5} fill="#AFA9EC" onPress={() => onZonePress('body')} />
-
-        {/* ═══════════════  NECK  ═══════════════════════════════════════ */}
+        {/* ════════════════════  NEAR HIND LEG  ══════════════════════════ */}
         <Path
-          d="M 270,153 Q 292,112 312,104 L 334,114 Q 320,152 298,166 Z"
+          d="M 107,220 C 104,247 102,270 104,290 C 106,298 120,298 122,290
+             C 124,270 122,247 116,220 Z"
           fill={bodyFill} {...B}
         />
-        {!isPaint && (
-          <Path
-            d="M 280,151 Q 298,115 316,107"
-            stroke="white" strokeWidth={5} strokeOpacity={0.28}
-            strokeLinecap="round" fill="none"
-          />
-        )}
 
-        {/* ═══════════════  WINGS (alicorn)  ═══════════════════════════ */}
+        {/* ════════════════════  WINGS (optional alicorn)  ════════════════ */}
         {showWings && (
           <>
             <Path
-              d="M 112,165 C 74,142 42,160 54,188 C 60,200 82,193 99,177
-                 C 80,191 70,208 82,221 C 89,227 108,216 112,200 Z"
-              fill={mC(0)} fillOpacity={0.92} {...M}
+              d="M 108,162 C 68,138 36,158 48,188 C 54,200 78,192 96,176
+                 C 76,190 66,208 78,222 C 85,228 106,218 110,200 Z"
+              fill={mC(0)} fillOpacity={0.9} {...M}
             />
             <Path
-              d="M 48,174 C 32,186 30,204 40,216 C 34,202 36,186 48,176 Z"
-              fill={mC(1)} fillOpacity={0.7} {...M}
-            />
-            <Path
-              d="M 42,194 C 26,206 24,224 34,234 C 28,222 30,206 42,196 Z"
-              fill={mC(2)} fillOpacity={0.6} {...M}
+              d="M 42,170 C 26,183 24,202 35,214 C 29,200 31,184 42,172 Z"
+              fill={mC(1)} fillOpacity={0.65} {...M}
             />
           </>
         )}
 
-        {/* ═══════════════  MANE — BACK LAYERS (behind head)  ══════════ */}
-        {/* Layer 0 — hot pink, outermost — sweeps far left for visibility */}
+        {/* ════════════════════  NECK  ════════════════════════════════════
+            Long elegant arching neck.
+            Crest (back edge): withers → poll at (280, 48).
+            Throat (front edge): chest area → throatlatch.               */}
         <Path
-          d="M 286,82 C 246,90 206,122 202,164
-             C 198,198 234,206 264,188
-             C 240,196 214,190 216,165
-             C 220,124 250,98 286,86 Z"
+          d="M 254,130
+             C 246,102 262,65 280,48
+             C 285,48 293,65 298,110
+             C 290,126 276,138 268,148
+             C 262,140 258,134 254,130 Z"
+          fill={bodyFill} {...B}
+        />
+        {/* Neck highlight — follows the crest curve */}
+        {!isPaint && (
+          <Path d="M 258,132 C 252,106 264,72 280,52"
+            stroke="white" strokeWidth={6} strokeOpacity={0.26} strokeLinecap="round" fill="none" />
+        )}
+
+        {/* ════════════════════  MANE — BACK LAYERS  ══════════════════════
+            4 rainbow bands flowing from poll (280,48) down and to the left,
+            continuing well past the neck for a dramatic cascade.
+            Drawn BEFORE head so head hides the roots.                   */}
+
+        {/* Layer 0 — hot pink, outermost/widest — sweeps to ≈x=182 */}
+        <Path
+          d="M 278,48 C 234,64 192,114 182,160
+             C 175,194 206,210 238,198
+             C 214,204 188,196 190,163
+             C 196,118 232,72 278,52 Z"
           fill={mC(0)} {...M}
         />
         {/* Layer 1 — purple */}
         <Path
-          d="M 291,80 C 256,90 221,122 217,163
-             C 213,193 247,200 272,183
-             C 250,191 226,185 228,163
-             C 232,124 260,98 291,84 Z"
+          d="M 283,47 C 245,65 208,114 200,160
+             C 193,190 222,204 252,192
+             C 230,198 206,190 208,162
+             C 213,118 247,70 283,51 Z"
           fill={mC(1)} {...M}
         />
         {/* Layer 2 — sky blue */}
         <Path
-          d="M 296,80 C 266,91 236,122 232,162
-             C 228,188 259,194 280,178
-             C 261,186 240,181 242,161
-             C 246,123 268,98 296,84 Z"
+          d="M 289,47 C 257,65 226,112 218,158
+             C 212,186 238,199 265,188
+             C 245,194 224,186 225,160
+             C 230,116 260,70 289,51 Z"
           fill={mC(2)} {...M}
         />
-        {/* Layer 3 — teal (innermost back strand) */}
+        {/* Layer 3 — teal, innermost */}
         <Path
-          d="M 302,80 C 278,92 254,122 250,160
-             C 246,184 272,190 290,175
-             C 274,183 256,178 258,158
-             C 262,122 280,98 302,84 Z"
+          d="M 295,47 C 268,66 244,112 237,157
+             C 231,183 254,196 278,185
+             C 260,190 241,183 243,158
+             C 247,114 270,70 295,51 Z"
           fill={mC(3)} {...M}
         />
-        {/* Back-mane sheen */}
+        {/* Mane back sheen */}
         {!isPaint && (
-          <Path
-            d="M 282,89 C 244,106 222,138 224,168"
-            stroke="white" strokeWidth={5} strokeOpacity={0.3}
-            strokeLinecap="round" fill="none"
-          />
+          <Path d="M 278,54 C 240,78 218,122 220,164"
+            stroke="white" strokeWidth={5} strokeOpacity={0.28} strokeLinecap="round" fill="none" />
         )}
 
-        {/* ═══════════════  HEAD  ═══════════════════════════════════════ */}
-        {/* Main head — rounder, bigger than before */}
-        <Ellipse cx={302} cy={114} rx={62} ry={58} fill={bodyFill} {...B} />
-        {/* Snout */}
-        <Ellipse cx={352} cy={136} rx={17} ry={15} fill={bodyFill} {...B} />
+        {/* ════════════════════  HEAD  ════════════════════════════════════
+            Slightly elongated — wider than tall, horse-like.
+            cx=302, cy=88 — sits atop the neck.                         */}
+        <Ellipse cx={302} cy={88} rx={58} ry={50} fill={bodyFill} {...B} />
+        {/* Muzzle / snout protrusion */}
+        <Ellipse cx={352} cy={112} rx={17} ry={15} fill={bodyFill} {...B} />
         {!isPaint && (
-          <Ellipse cx={352} cy={143} rx={15} ry={9}
-            fill="#534AB7" fillOpacity={0.04}
-            onPress={() => onZonePress('body')}
-          />
+          <Ellipse cx={352} cy={118} rx={15} ry={9}
+            fill="#534AB7" fillOpacity={0.04} onPress={() => onZonePress('body')} />
         )}
-        {/* Head highlight */}
+        {/* Head highlights */}
         {!isPaint && (
           <>
             <Path
-              d="M 264,94 C 276,79 300,73 326,81 C 300,69 274,77 264,94 Z"
-              fill="white" fillOpacity={0.45}
-              onPress={() => onZonePress('body')}
+              d="M 262,72 C 276,56 305,50 332,60 C 305,46 274,54 262,72 Z"
+              fill="white" fillOpacity={0.44} onPress={() => onZonePress('body')}
             />
-            <Ellipse cx={292} cy={102} rx={25} ry={17}
-              fill="white" fillOpacity={0.22}
-              onPress={() => onZonePress('body')}
-            />
+            <Ellipse cx={292} cy={80} rx={26} ry={16}
+              fill="white" fillOpacity={0.2} onPress={() => onZonePress('body')} />
           </>
         )}
 
-        {/* ═══════════════  EAR  ════════════════════════════════════════ */}
-        <Path d="M 280,82 L 292,56 L 315,80 Z" fill={bodyFill} {...B} />
-        {/* Pink inner ear */}
-        <Path d="M 284,80 L 292,62 L 309,79 Z" fill="#ffb6c1" fillOpacity={0.88}
-          onPress={() => onZonePress('mane')}
-        />
+        {/* ════════════════════  EAR  ═════════════════════════════════════ */}
+        <Path d="M 278,60 L 290,34 L 314,58 Z" fill={bodyFill} {...B} />
+        <Path d="M 282,60 L 290,40 L 311,58 Z" fill="#ffb6c1" fillOpacity={0.9}
+          onPress={() => onZonePress('mane')} />
 
-        {/* ═══════════════  HORN  ═══════════════════════════════════════ */}
-        {/* Main horn shape */}
-        <Path d="M 287,88 L 340,10 L 314,84 Z" fill={hornFill} {...H} />
+        {/* ════════════════════  HORN  ════════════════════════════════════
+            Tall, prominent, spiraling gold horn.                        */}
+        {/* Main horn body */}
+        <Path d="M 285,66 L 338,8 L 313,64 Z" fill="url(#hornGrad)" {...H} />
         {/* Shaded right face */}
         {!isPaint && (
-          <Path
-            d="M 302,85 L 340,10 L 314,84 Z"
-            fill="#8b6000" fillOpacity={0.14}
-            onPress={() => onZonePress('horn')}
-          />
+          <Path d="M 303,65 L 338,8 L 313,64 Z"
+            fill="#8b6000" fillOpacity={0.12} onPress={() => onZonePress('horn')} />
         )}
         {/* Highlight left face */}
         {!isPaint && (
-          <Path
-            d="M 287,88 L 340,10 L 306,58 Z"
-            fill="white" fillOpacity={0.32}
-            onPress={() => onZonePress('horn')}
-          />
+          <Path d="M 285,66 L 338,8 L 304,42 Z"
+            fill="white" fillOpacity={0.30} onPress={() => onZonePress('horn')} />
         )}
-        {/* Bright tip glow */}
+        {/* Horn tip glow */}
         {!isPaint && (
-          <Circle cx={340} cy={12} r={5} fill="white" fillOpacity={0.45} />
+          <Circle cx={338} cy={10} r={5} fill="white" fillOpacity={0.5} />
         )}
-        {/* Spiral grooves */}
-        <Path d="M 293,82 L 336,16" stroke="white" strokeWidth={1.6} strokeOpacity={0.62} strokeLinecap="round" fill="none" />
-        <Path d="M 299,83 L 337,27" stroke="white" strokeWidth={1.6} strokeOpacity={0.62} strokeLinecap="round" fill="none" />
-        <Path d="M 305,84 L 338,40" stroke="white" strokeWidth={1.6} strokeOpacity={0.62} strokeLinecap="round" fill="none" />
-        <Path d="M 311,84 L 339,52" stroke="white" strokeWidth={1.6} strokeOpacity={0.62} strokeLinecap="round" fill="none" />
-        <Path d="M 317,84 L 339,64" stroke="white" strokeWidth={1.6} strokeOpacity={0.62} strokeLinecap="round" fill="none" />
+        {/* Spiral groove lines */}
+        <Path d="M 291,63 L 334,16" stroke="white" strokeWidth={1.5} strokeOpacity={0.6} strokeLinecap="round" fill="none" />
+        <Path d="M 297,64 L 335,28" stroke="white" strokeWidth={1.5} strokeOpacity={0.6} strokeLinecap="round" fill="none" />
+        <Path d="M 303,65 L 336,40" stroke="white" strokeWidth={1.5} strokeOpacity={0.6} strokeLinecap="round" fill="none" />
+        <Path d="M 309,65 L 337,52" stroke="white" strokeWidth={1.5} strokeOpacity={0.6} strokeLinecap="round" fill="none" />
 
-        {/* ═══════════════  MANE — FRONT LAYERS (over head)  ═══════════ */}
-        {/* Front bulk — teal */}
+        {/* ════════════════════  NEAR FRONT LEGS  ═════════════════════════
+            Drawn AFTER head/neck so they appear in front.               */}
         <Path
-          d="M 313,82 C 296,102 290,128 296,147 C 304,162 322,157 328,142
-             C 333,128 326,107 316,95
-             C 328,110 330,132 325,147 C 319,159 305,154 298,142
-             C 292,126 298,103 313,85 Z"
-          fill={mC(3)} {...M}
+          d="M 235,202 C 232,230 230,256 232,278 C 234,288 248,288 250,278
+             C 252,256 250,230 243,202 Z"
+          fill={bodyFill} {...B}
         />
-        {/* Purple forelock wisp */}
-        <Path
-          d="M 317,82 C 334,101 337,126 328,141 C 338,124 336,101 318,85 Z"
-          fill={mC(1)} fillOpacity={isPaint ? 1 : 0.9} {...M}
-        />
-        {/* Yellow forelock tip */}
-        <Path
-          d="M 322,83 C 341,104 345,130 334,147 C 346,128 343,104 323,85 Z"
-          fill={isPaint ? maneFill : MANE_RAINBOW[5]}
-          fillOpacity={isPaint ? 1 : 0.88} {...M}
-        />
-        {/* Front-mane sheen */}
+        {/* Leg sheen */}
         {!isPaint && (
-          <Path
-            d="M 306,88 C 291,110 290,134 296,150"
-            stroke="white" strokeWidth={4} strokeOpacity={0.28}
-            strokeLinecap="round" fill="none"
-          />
+          <>
+            <Path d="M 238,206 C 235,232 235,258 238,276"
+              stroke="white" strokeWidth={4} strokeOpacity={0.3} strokeLinecap="round" fill="none" />
+            <Path d="M 110,224 C 107,250 107,272 110,288"
+              stroke="white" strokeWidth={4} strokeOpacity={0.3} strokeLinecap="round" fill="none" />
+            <Path d="M 95,220 C 92,246 92,268 95,286"
+              stroke="white" strokeWidth={3.5} strokeOpacity={0.22} strokeLinecap="round" fill="none" />
+            <Path d="M 218,208 C 215,234 215,260 218,278"
+              stroke="white" strokeWidth={3.5} strokeOpacity={0.22} strokeLinecap="round" fill="none" />
+          </>
         )}
-        {/* Mane tint overlay — user zone-colour tints the rainbow */}
+
+        {/* ════════════════════  HOOVES  ══════════════════════════════════ */}
+        {/* Hind far */}
+        <Path d="M 86,288 C 85,294 87,299 90,299 L 103,299 C 106,299 108,294 107,288 Z"
+          fill="#AFA9EC" onPress={() => onZonePress('body')} />
+        {/* Hind near */}
+        <Path d="M 103,290 C 102,296 104,301 107,301 L 120,301 C 123,301 125,296 124,290 Z"
+          fill="#AFA9EC" onPress={() => onZonePress('body')} />
+        {/* Front far */}
+        <Path d="M 210,280 C 209,286 211,291 214,291 L 226,291 C 229,291 231,286 230,280 Z"
+          fill="#AFA9EC" onPress={() => onZonePress('body')} />
+        {/* Front near */}
+        <Path d="M 231,278 C 230,285 232,290 235,290 L 249,290 C 252,290 254,285 253,278 Z"
+          fill="#AFA9EC" onPress={() => onZonePress('body')} />
+
+        {/* ════════════════════  MANE — FORELOCK  ═════════════════════════
+            Wisps flowing from horn base FORWARD over the face.          */}
+        {/* Wisp 0 — teal (behind) */}
+        <Path
+          d="M 296,52 C 314,70 320,98 313,118 C 323,96 319,70 296,55 Z"
+          fill={mC(3)} fillOpacity={isPaint ? 1 : 0.92} {...M}
+        />
+        {/* Wisp 1 — purple */}
+        <Path
+          d="M 302,50 C 323,70 330,100 322,122 C 334,98 328,70 302,53 Z"
+          fill={mC(1)} fillOpacity={isPaint ? 1 : 0.90} {...M}
+        />
+        {/* Wisp 2 — hot pink (front) */}
+        <Path
+          d="M 308,49 C 332,72 340,104 330,128 C 344,102 336,72 308,52 Z"
+          fill={mC(0)} fillOpacity={isPaint ? 1 : 0.88} {...M}
+        />
+        {/* Yellow tip */}
+        <Path
+          d="M 315,49 C 340,74 348,108 336,132 C 351,106 343,74 315,52 Z"
+          fill={isPaint ? maneFill : MANE_RAINBOW[5]} fillOpacity={isPaint ? 1 : 0.85} {...M}
+        />
+        {/* Forelock sheen */}
+        {!isPaint && (
+          <Path d="M 305,56 C 320,78 324,106 316,124"
+            stroke="white" strokeWidth={4} strokeOpacity={0.25} strokeLinecap="round" fill="none" />
+        )}
+        {/* Mane tint overlays (dress mode zone-colour tints the rainbow) */}
         {!isPaint && (
           <>
             <Path
-              d="M 286,82 C 246,90 206,122 202,164
-                 C 198,198 234,206 264,188
-                 C 240,196 214,190 216,165
-                 C 220,124 250,98 286,86 Z"
-              fill={maneFill} fillOpacity={0.27}
-              onPress={() => onZonePress('mane')}
+              d="M 278,48 C 234,64 192,114 182,160
+                 C 175,194 206,210 238,198
+                 C 214,204 188,196 190,163
+                 C 196,118 232,72 278,52 Z"
+              fill={maneFill} fillOpacity={0.26} onPress={() => onZonePress('mane')}
             />
             <Path
-              d="M 313,82 C 296,102 290,128 296,147 C 304,162 322,157 328,142
-                 C 333,128 326,107 316,95
-                 C 328,110 330,132 325,147 C 319,159 305,154 298,142
-                 C 292,126 298,103 313,85 Z"
-              fill={maneFill} fillOpacity={0.27}
-              onPress={() => onZonePress('mane')}
+              d="M 296,52 C 314,70 320,98 313,118 C 323,96 319,70 296,55 Z
+                 M 308,49 C 332,72 340,104 330,128 C 344,102 336,72 308,52 Z"
+              fill={maneFill} fillOpacity={0.26} onPress={() => onZonePress('mane')}
             />
           </>
         )}
 
-        {/* ═══════════════  EYE  ════════════════════════════════════════ */}
-        {/* White sclera — big and round */}
-        <Ellipse cx={324} cy={109} rx={22} ry={21} fill="white" />
+        {/* ════════════════════  EYE  ═════════════════════════════════════
+            Large, glassy, expressive — classic Lisa Frank look.
+            Head center ≈ (302,88). Eye at (320, 76).                   */}
+        {/* Sclera */}
+        <Ellipse cx={322} cy={82} rx={22} ry={21} fill="white" />
         {/* Iris outer (deep indigo) */}
-        <Circle cx={324} cy={109} r={16} fill="#1e1060" />
-        {/* Iris mid (violet) */}
-        <Circle cx={324} cy={109} r={12} fill="#6b3fb5" />
-        {/* Iris inner shimmer */}
-        <Circle cx={324} cy={109} r={9}  fill="#9462d8" />
+        <Circle cx={322} cy={82} r={16} fill="#1e1060" />
+        {/* Iris mid (violet shimmer) */}
+        <Circle cx={322} cy={82} r={12} fill="#6b3fb5" />
+        {/* Iris inner glow */}
+        <Circle cx={322} cy={82} r={9}  fill="#9462d8" />
         {/* Pupil */}
-        <Circle cx={324} cy={111} r={6}  fill="#080418" />
-        {/* ── Highlights ── */}
-        {/* Large main sparkle (upper-right) */}
-        <Circle cx={331} cy={102} r={8}  fill="white" />
-        {/* Medium secondary (lower-left) */}
-        <Circle cx={314} cy={117} r={4}  fill="white" fillOpacity={0.78} />
-        {/* Small glint */}
-        <Circle cx={330} cy={116} r={2.2} fill="white" fillOpacity={0.62} />
-        {/* Tiny glint */}
-        <Circle cx={316} cy={104} r={1.6} fill="white" fillOpacity={0.45} />
-        {/* ── Lashes & Lid ── */}
+        <Circle cx={322} cy={84} r={6}  fill="#080418" />
+        {/* Large main sparkle highlight (upper-right quadrant) */}
+        <Circle cx={329} cy={75} r={8}  fill="white" />
+        {/* Secondary highlight */}
+        <Circle cx={312} cy={90} r={4}  fill="white" fillOpacity={0.78} />
+        {/* Small glints */}
+        <Circle cx={328} cy={90} r={2.2} fill="white" fillOpacity={0.62} />
+        <Circle cx={314} cy={76} r={1.6} fill="white" fillOpacity={0.45} />
         {/* Upper eyelid arc */}
-        <Path
-          d="M 302,104 C 309,94 335,94 344,104"
-          stroke="#1e1060" strokeWidth={2.8} strokeLinecap="round" fill="none"
-        />
+        <Path d="M 300,77 C 307,67 333,67 342,77"
+          stroke="#1e1060" strokeWidth={2.8} strokeLinecap="round" fill="none" />
         {/* Eyelashes */}
-        <Path d="M 305,103 L 300,94"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
-        <Path d="M 312,98  L 310,89"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
-        <Path d="M 320,96  L 320,87"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
-        <Path d="M 328,97  L 331,88"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
-        <Path d="M 336,102 L 340,93"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
+        <Path d="M 303,76 L 298,66"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
+        <Path d="M 310,71 L 308,61"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
+        <Path d="M 318,68 L 318,58"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
+        <Path d="M 326,69 L 329,59"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
+        <Path d="M 334,74 L 339,65"  stroke="#1e1060" strokeWidth={2.2} strokeLinecap="round" fill="none" />
         {/* Lower lash line */}
-        <Path
-          d="M 303,115 C 314,126 334,126 344,118"
-          stroke="#1e1060" strokeWidth={1.1} strokeLinecap="round"
-          fill="none" strokeOpacity={0.35}
-        />
+        <Path d="M 301,88 C 312,100 332,100 342,92"
+          stroke="#1e1060" strokeWidth={1.1} strokeLinecap="round" fill="none" strokeOpacity={0.35} />
         {/* Rosy cheek blush */}
-        <Ellipse cx={320} cy={136} rx={16} ry={8} fill="#ff9de2" fillOpacity={0.4} />
+        <Ellipse cx={316} cy={108} rx={15} ry={8} fill="#ff9de2" fillOpacity={0.38} />
 
-        {/* ═══════════════  NOSE & SMILE  ═══════════════════════════════ */}
-        {/* Nostril */}
-        <Ellipse
-          cx={360} cy={133} rx={4.5} ry={5.5}
-          fill="#ff9de2" fillOpacity={0.4}
-          onPress={() => onZonePress('body')}
-        />
-        {/* Smile */}
-        <Path
-          d="M 344,142 C 350,149 359,150 364,146"
-          stroke="#c77dff" strokeWidth={2.4} strokeLinecap="round" fill="none"
-        />
+        {/* ════════════════════  NOSTRIL & SMILE  ═════════════════════════ */}
+        <Ellipse cx={360} cy={107} rx={4.5} ry={5.5}
+          fill="#ff9de2" fillOpacity={0.40} onPress={() => onZonePress('body')} />
+        <Path d="M 343,117 C 350,125 360,125 365,120"
+          stroke="#c77dff" strokeWidth={2.4} strokeLinecap="round" fill="none" />
 
-        {/* Sparkles handled by animated overlay in DressScreen */}
       </Svg>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  container: { alignItems: 'center', justifyContent: 'center' },
 });
