@@ -19,10 +19,10 @@ interface PlacedAccessory {
 }
 
 const DEFAULT_COLORS: UnicornColors = {
-  body: '#f0e4ff',
-  mane: '#ff9de2',
+  body: '#ffffff',
+  mane: '#ff6eb4',
   horn: '#ffd700',
-  tail: '#c084fc',
+  tail: '#c077ff',
 };
 
 const DEFAULT_PAINT_COLORS: UnicornColors = {
