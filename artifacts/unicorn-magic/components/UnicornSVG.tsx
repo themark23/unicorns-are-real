@@ -19,18 +19,6 @@ interface UnicornSVGProps {
   showWings?: boolean;
 }
 
-function Sparkle({ cx, cy, r, color }: { cx: number; cy: number; r: number; color: string }) {
-  const pts = (n: number, outer: number, inner: number) => {
-    const pts: string[] = [];
-    for (let i = 0; i < n * 2; i++) {
-      const angle = (i * Math.PI) / n - Math.PI / 2;
-      const dist = i % 2 === 0 ? outer : inner;
-      pts.push(`${cx + dist * Math.cos(angle)},${cy + dist * Math.sin(angle)}`);
-    }
-    return pts.join(' ');
-  };
-  return <Path d={`M ${pts(4, r, r * 0.38)} Z`} fill={color} />;
-}
 
 export default function UnicornSVG({ colors, mode, sparkles, onZonePress, showWings }: UnicornSVGProps) {
   const isPaint = mode === 'paint';
@@ -357,21 +345,7 @@ export default function UnicornSVG({ colors, mode, sparkles, onZonePress, showWi
         <Ellipse cx={358} cy={137} rx={4.5} ry={5.5} fill="#26215C" fillOpacity={0.17}
           onPress={() => onZonePress('body')} />
 
-        {/* ─── SPARKLES ─────────────────────────────────────── */}
-        {sparkles && (
-          <>
-            <Sparkle cx={44}  cy={76}  r={10} color="#ffd700cc" />
-            <Sparkle cx={288} cy={34}  r={9}  color="#ffd700cc" />
-            <Sparkle cx={22}  cy={188} r={7}  color="#ff9de2cc" />
-            <Sparkle cx={354} cy={162} r={9}  color="#c084fccc" />
-            <Sparkle cx={86}  cy={48}  r={6}  color="#ffd700cc" />
-            <Sparkle cx={268} cy={262} r={8}  color="#ffd700cc" />
-            <Sparkle cx={148} cy={40}  r={7}  color="#93c5fdcc" />
-            <Sparkle cx={348} cy={78}  r={6}  color="#ff9de2cc" />
-            <Sparkle cx={168} cy={255} r={5}  color="#c084fccc" />
-            <Sparkle cx={56}  cy={230} r={5}  color="#ffd700cc" />
-          </>
-        )}
+        {/* Sparkles are rendered as an animated overlay in DressScreen */}
       </Svg>
     </View>
   );
