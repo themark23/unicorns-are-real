@@ -1,0 +1,38 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Z0GwDvCKqTpqh89FnDNW3"
+uri = "file://artifacts/unicorn-magic/assets/images/icon.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "f-nchq9HG24d6tp0S2MZ2"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-love.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "M7QjlS0WVButEkDqqgczc"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-speed.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "7XZf5K9aIe6EZldsw0aOg"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-rainbow.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "XCJKN1guOtB2hU1sXQHVo"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-sunshine.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "e1RLIqgrZF4ZAwS1PeBcu"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-dream.png"
+type = "image"
+title = "generated_image"

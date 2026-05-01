@@ -1,0 +1,38 @@
+const colors = {
+  light: {
+    text: '#26215C',
+    tint: '#534AB7',
+    background: '#EEEDFE',
+    foreground: '#26215C',
+    card: '#ffffff',
+    cardForeground: '#444441',
+    primary: '#534AB7',
+    primaryForeground: '#ffffff',
+    secondary: '#3C3489',
+    secondaryForeground: '#ffffff',
+    muted: '#f0effe',
+    mutedForeground: '#888780',
+    accent: '#ff9de2',
+    accentForeground: '#26215C',
+    destructive: '#ef4444',
+    destructiveForeground: '#ffffff',
+    border: '#CECBF6',
+    input: '#CECBF6',
+    lavender: '#EEEDFE',
+    deepPurple: '#26215C',
+    midPurple: '#534AB7',
+    softPurple: '#3C3489',
+    lavenderMuted: '#AFA9EC',
+    textDark: '#444441',
+    textMuted: '#888780',
+    palette: [
+      '#ff9de2', '#c084fc', '#93c5fd', '#86efac',
+      '#fda07a', '#fde68a', '#5eead4', '#fb7185',
+      '#ddd6fe', '#ffd700', '#a5f3fc', '#f8f0ff',
+    ],
+    defaultUnicorn: { body: '#f0e4ff', mane: '#ff9de2', horn: '#ffd700', tail: '#c084fc' },
+  },
+  radius: 16,
+};
+
+export default colors;
