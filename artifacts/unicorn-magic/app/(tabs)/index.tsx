@@ -28,6 +28,12 @@ const ZONES: { id: Zone; label: string }[] = [
   { id: 'tail', label: 'Tail' },
 ];
 
+// ─── Accessory types ─────────────────────────────────────────────────────────
+// 'cutie-mark' → flat stamp rendered directly on the unicorn (no bubble)
+// 'accessory'  → worn item (crown, glasses, etc.) rendered as free-floating icon
+
+type AccessoryType = 'cutie-mark' | 'accessory';
+
 interface AccessoryItem {
   id: string;
   label: string;
@@ -35,38 +41,42 @@ interface AccessoryItem {
   iconSet: 'Ionicons' | 'MaterialCommunityIcons';
   color: string;
   bgColor: string;
+  accType: AccessoryType;
 }
 
 const ACCESSORIES: AccessoryItem[] = [
-  { id: 'crown-gold',   label: 'Crown',     iconName: 'crown',          iconSet: 'MaterialCommunityIcons', color: '#ffd700', bgColor: '#fffbdd' },
-  { id: 'crown-pink',   label: 'Tiara',     iconName: 'crown-outline',  iconSet: 'MaterialCommunityIcons', color: '#ff9de2', bgColor: '#fff0f8' },
-  { id: 'flower',       label: 'Flowers',   iconName: 'flower',         iconSet: 'MaterialCommunityIcons', color: '#86efac', bgColor: '#f0fff4' },
-  { id: 'necklace',     label: 'Necklace',  iconName: 'heart',          iconSet: 'Ionicons',               color: '#fb7185', bgColor: '#fff0f2' },
-  { id: 'star-badge',   label: 'Star',      iconName: 'star',           iconSet: 'Ionicons',               color: '#ffd700', bgColor: '#fffbdd' },
-  { id: 'bow',          label: 'Bow Tie',   iconName: 'bow-tie',        iconSet: 'MaterialCommunityIcons', color: '#c084fc', bgColor: '#f5f0ff' },
-  { id: 'glasses',      label: 'Glasses',   iconName: 'glasses',        iconSet: 'MaterialCommunityIcons', color: '#93c5fd', bgColor: '#f0f4ff' },
-  { id: 'gem',          label: 'Gem',       iconName: 'diamond-stone',  iconSet: 'MaterialCommunityIcons', color: '#5eead4', bgColor: '#f0fffe' },
-  { id: 'butterfly',    label: 'Wings',     iconName: 'butterfly',      iconSet: 'MaterialCommunityIcons', color: '#ddd6fe', bgColor: '#f8f5ff' },
-  { id: 'wand',         label: 'Wand',      iconName: 'auto-fix',       iconSet: 'MaterialCommunityIcons', color: '#ffd700', bgColor: '#fffbdd' },
+  // ── Cutie marks ─────────────────────────────────────────────────────────
+  { id: 'heart',     label: 'Heart',     iconName: 'heart',         iconSet: 'Ionicons',               color: '#fb7185', bgColor: '#fff0f2', accType: 'cutie-mark' },
+  { id: 'star',      label: 'Star',      iconName: 'star',          iconSet: 'Ionicons',               color: '#ffd700', bgColor: '#fffbdd', accType: 'cutie-mark' },
+  { id: 'leaf',      label: 'Clover',    iconName: 'leaf',          iconSet: 'Ionicons',               color: '#4ade80', bgColor: '#f0fff4', accType: 'cutie-mark' },
+  { id: 'butterfly', label: 'Butterfly', iconName: 'butterfly',     iconSet: 'MaterialCommunityIcons', color: '#c084fc', bgColor: '#f8f5ff', accType: 'cutie-mark' },
+  { id: 'gem',       label: 'Gem',       iconName: 'diamond-stone', iconSet: 'MaterialCommunityIcons', color: '#5eead4', bgColor: '#f0fffe', accType: 'cutie-mark' },
+  { id: 'note',      label: 'Music',     iconName: 'musical-note',  iconSet: 'Ionicons',               color: '#a78bfa', bgColor: '#f5f0ff', accType: 'cutie-mark' },
+  // ── Wearable accessories ─────────────────────────────────────────────────
+  { id: 'crown',     label: 'Crown',     iconName: 'crown',         iconSet: 'MaterialCommunityIcons', color: '#ffd700', bgColor: '#fffbdd', accType: 'accessory' },
+  { id: 'tiara',     label: 'Tiara',     iconName: 'crown-outline', iconSet: 'MaterialCommunityIcons', color: '#ff9de2', bgColor: '#fff0f8', accType: 'accessory' },
+  { id: 'glasses',   label: 'Glasses',   iconName: 'glasses',       iconSet: 'MaterialCommunityIcons', color: '#93c5fd', bgColor: '#f0f4ff', accType: 'accessory' },
+  { id: 'bow',       label: 'Bow Tie',   iconName: 'bow-tie',       iconSet: 'MaterialCommunityIcons', color: '#c084fc', bgColor: '#f5f0ff', accType: 'accessory' },
+  { id: 'wand',      label: 'Wand',      iconName: 'auto-fix',      iconSet: 'MaterialCommunityIcons', color: '#ffd700', bgColor: '#fffbdd', accType: 'accessory' },
 ];
 
-// SVG rendered dimensions (must match UnicornSVG component)
-const SVG_W = 295;
-const SVG_H = 250;
-const SVG_PAD_V = 16; // unicornArea paddingVertical
-
-// Accessory icon dimensions
-const ICON_SIZE = 52;
+// Container size is the same for both types (determines touch target + positioning)
+const ICON_SIZE = 62;
 const ICON_HALF = ICON_SIZE / 2;
 
-// Sparkle positions as fractions of the rendered SVG (0–1)
+// Sizes of the rendered icon inside the container
+const CUTIE_ICON_SIZE = 42;
+const WEAR_ICON_SIZE  = 54;
+
+// Sparkle overlay config
+const SVG_W     = 295;
+const SVG_H     = 250;
+const SVG_PAD_V = 16;
+
 interface SparkleSpec {
-  pctX: number;
-  pctY: number;
-  size: number;
-  color: string;
-  delay: number;
-  speed: number; // ms for one full rotation
+  pctX: number; pctY: number;
+  size: number; color: string;
+  delay: number; speed: number;
 }
 
 const SPARKLE_SPECS: SparkleSpec[] = [
@@ -84,12 +94,7 @@ const SPARKLE_SPECS: SparkleSpec[] = [
 
 // ─── AnimatedSparkle ─────────────────────────────────────────────────────────
 
-interface AnimatedSparkleProps extends SparkleSpec {
-  svgLeft: number;
-  svgTop: number;
-}
-
-function AnimatedSparkle({ pctX, pctY, size, color, delay, speed, svgLeft, svgTop }: AnimatedSparkleProps) {
+function AnimatedSparkle({ pctX, pctY, size, color, delay, speed, svgLeft, svgTop }: SparkleSpec & { svgLeft: number; svgTop: number }) {
   const scaleAnim   = useRef(new Animated.Value(0)).current;
   const rotateAnim  = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -98,60 +103,29 @@ function AnimatedSparkle({ pctX, pctY, size, color, delay, speed, svgLeft, svgTo
     let pulseLoop: Animated.CompositeAnimation | undefined;
 
     const spinLoop = Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: speed,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
+      Animated.timing(rotateAnim, { toValue: 1, duration: speed, easing: Easing.linear, useNativeDriver: true })
     );
     spinLoop.start();
 
-    const entranceTimer = setTimeout(() => {
+    const t = setTimeout(() => {
       Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 160,
-          friction: 5,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 280,
-          useNativeDriver: true,
-        }),
+        Animated.spring(scaleAnim, { toValue: 1, tension: 160, friction: 5, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
       ]).start(() => {
         pulseLoop = Animated.loop(
           Animated.sequence([
-            Animated.timing(scaleAnim, {
-              toValue: 1.45,
-              duration: 550 + Math.random() * 200,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
-            Animated.timing(scaleAnim, {
-              toValue: 0.78,
-              duration: 550 + Math.random() * 200,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
+            Animated.timing(scaleAnim, { toValue: 1.45, duration: 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(scaleAnim, { toValue: 0.78, duration: 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
           ])
         );
         pulseLoop.start();
       });
     }, delay);
 
-    return () => {
-      clearTimeout(entranceTimer);
-      spinLoop.stop();
-      pulseLoop?.stop();
-    };
+    return () => { clearTimeout(t); spinLoop.stop(); pulseLoop?.stop(); };
   }, []);
 
-  const rotate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  const rotate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
     <Animated.View
@@ -169,24 +143,13 @@ function AnimatedSparkle({ pctX, pctY, size, color, delay, speed, svgLeft, svgTo
   );
 }
 
-// ─── SparkleOverlay ──────────────────────────────────────────────────────────
-
 function SparkleOverlay({ svgLeft, svgTop }: { svgLeft: number; svgTop: number }) {
   const containerOpacity = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
-    Animated.timing(containerOpacity, {
-      toValue: 1,
-      duration: 320,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(containerOpacity, { toValue: 1, duration: 320, useNativeDriver: true }).start();
   }, []);
-
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[StyleSheet.absoluteFill, { opacity: containerOpacity }]}
-    >
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: containerOpacity }]}>
       {SPARKLE_SPECS.map((sp, i) => (
         <AnimatedSparkle key={i} {...sp} svgLeft={svgLeft} svgTop={svgTop} />
       ))}
@@ -198,8 +161,8 @@ function SparkleOverlay({ svgLeft, svgTop }: { svgLeft: number; svgTop: number }
 
 interface DragProps {
   acc: AccessoryItem;
-  initialX: number; // center X within unicornArea
-  initialY: number; // center Y within unicornArea
+  initialX: number;
+  initialY: number;
   areaWidth: number;
   areaHeight: number;
   onPositionChange: (x: number, y: number) => void;
@@ -207,79 +170,47 @@ interface DragProps {
   onDragEnd: () => void;
 }
 
-function DraggableAccessory({
-  acc,
-  initialX,
-  initialY,
-  areaWidth,
-  areaHeight,
-  onPositionChange,
-  onDragStart,
-  onDragEnd,
-}: DragProps) {
-  // Animated.ValueXY starts at top-left of icon (center - ICON_HALF)
-  const pan = useRef(
-    new Animated.ValueXY({ x: initialX - ICON_HALF, y: initialY - ICON_HALF })
-  ).current;
-  const scale = useRef(new Animated.Value(0)).current;
-
-  // Keep a ref to the latest pan value so callbacks can read it
-  const currentPan = useRef({ x: initialX - ICON_HALF, y: initialY - ICON_HALF });
+function DraggableAccessory({ acc, initialX, initialY, areaWidth, areaHeight, onPositionChange, onDragStart, onDragEnd }: DragProps) {
+  const pan       = useRef(new Animated.ValueXY({ x: initialX - ICON_HALF, y: initialY - ICON_HALF })).current;
+  const scale     = useRef(new Animated.Value(0)).current;
   const dragOrigin = useRef({ x: 0, y: 0 });
+  const currentPan = useRef({ x: initialX - ICON_HALF, y: initialY - ICON_HALF });
 
   useEffect(() => {
-    const listenerId = pan.addListener((v) => {
-      currentPan.current = v;
-    });
-    return () => pan.removeListener(listenerId);
+    const id = pan.addListener((v) => { currentPan.current = v; });
+    return () => pan.removeListener(id);
   }, []);
 
   // Pop-in on mount
   useEffect(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      tension: 170,
-      friction: 7,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(scale, { toValue: 1, tension: 170, friction: 7, useNativeDriver: true }).start();
   }, []);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder:  () => true,
-
       onPanResponderGrant: () => {
-        // Capture where we started the drag
         dragOrigin.current = { ...currentPan.current };
         pan.setOffset(currentPan.current);
         pan.setValue({ x: 0, y: 0 });
-        Animated.spring(scale, { toValue: 1.38, useNativeDriver: true }).start();
+        Animated.spring(scale, { toValue: 1.25, useNativeDriver: true }).start();
         onDragStart();
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
-
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan.x, dy: pan.y }],
-        { useNativeDriver: false }
-      ),
-
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
       onPanResponderRelease: (_, g) => {
         pan.flattenOffset();
         Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
-
-        // Clamp final center position to stay inside the area
         const rawX = dragOrigin.current.x + g.dx + ICON_HALF;
         const rawY = dragOrigin.current.y + g.dy + ICON_HALF;
-        const clampedX = Math.max(ICON_HALF, Math.min(areaWidth  - ICON_HALF, rawX));
-        const clampedY = Math.max(ICON_HALF, Math.min(areaHeight - ICON_HALF, rawY));
-
-        pan.setValue({ x: clampedX - ICON_HALF, y: clampedY - ICON_HALF });
-        onPositionChange(clampedX, clampedY);
+        const cx = Math.max(ICON_HALF, Math.min(areaWidth  - ICON_HALF, rawX));
+        const cy = Math.max(ICON_HALF, Math.min(areaHeight - ICON_HALF, rawY));
+        pan.setValue({ x: cx - ICON_HALF, y: cy - ICON_HALF });
+        onPositionChange(cx, cy);
         onDragEnd();
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
-
       onPanResponderTerminate: () => {
         pan.flattenOffset();
         Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
@@ -288,27 +219,37 @@ function DraggableAccessory({
     })
   ).current;
 
+  const Icon = acc.iconSet === 'Ionicons' ? Ionicons : MaterialCommunityIcons;
+  const isMark = acc.accType === 'cutie-mark';
+
   return (
     <Animated.View
       style={[
-        styles.draggableAccessory,
-        {
-          transform: [
-            { translateX: pan.x },
-            { translateY: pan.y },
-            { scale },
-          ],
-        },
+        styles.draggableOuter,
+        { transform: [{ translateX: pan.x }, { translateY: pan.y }, { scale }] },
       ]}
       {...panResponder.panHandlers}
     >
-      <View style={[styles.accessoryBubble, { backgroundColor: acc.bgColor, borderColor: acc.color }]}>
-        {acc.iconSet === 'Ionicons' ? (
-          <Ionicons name={acc.iconName as any} size={26} color={acc.color} />
-        ) : (
-          <MaterialCommunityIcons name={acc.iconName as any} size={26} color={acc.color} />
-        )}
-      </View>
+      {isMark ? (
+        // ── Cutie mark: a flat stamp with a subtle halo ──
+        <View style={styles.cutieMarkWrap}>
+          {/* Soft white glow behind stamp (integrates with body colour) */}
+          <View style={[styles.cutieMarkHalo, { backgroundColor: 'white', opacity: 0.55 }]} />
+          {/* Coloured tint ring */}
+          <View style={[styles.cutieMarkHalo, { backgroundColor: acc.color, opacity: 0.18 }]} />
+          <Icon name={acc.iconName as any} size={CUTIE_ICON_SIZE} color={acc.color} />
+        </View>
+      ) : (
+        // ── Wearable: free-floating icon, no container ──
+        <View style={styles.wearableWrap}>
+          <Icon
+            name={acc.iconName as any}
+            size={WEAR_ICON_SIZE}
+            color={acc.color}
+            style={styles.wearableIcon}
+          />
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -319,22 +260,13 @@ export default function DressScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const {
-    dressColors,
-    sparkles,
-    selectedZone,
-    setDressColor,
-    toggleSparkles,
-    setSelectedZone,
-    resetDressColors,
+    dressColors, sparkles, selectedZone,
+    setDressColor, toggleSparkles, setSelectedZone, resetDressColors,
   } = useUnicorn();
 
-  const [placedAccessories, setPlacedAccessories] = useState<
-    Record<string, { x: number; y: number }>
-  >({});
-  const [isDragging, setIsDragging] = useState(false);
-  const [unicornLayout, setUnicornLayout] = useState({
-    x: 0, y: 0, width: 0, height: 0,
-  });
+  const [placedAccessories, setPlacedAccessories] = useState<Record<string, { x: number; y: number }>>({});
+  const [isDragging, setIsDragging]   = useState(false);
+  const [unicornLayout, setUnicornLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
   const topPad    = Platform.OS === 'web' ? 67 : 0;
   const bottomPad = Platform.OS === 'web' ? 34 : 0;
@@ -361,8 +293,13 @@ export default function DressScreen() {
       }
       const w = unicornLayout.width  || SVG_W;
       const h = unicornLayout.height || SVG_H + SVG_PAD_V * 2;
-      const cx = w / 2 + (Math.random() - 0.5) * 100;
-      const cy = h / 2 + (Math.random() - 0.5) * 70;
+      // Default placement: cutie marks land on the flank, accessories near the head
+      const cx = acc.accType === 'cutie-mark'
+        ? w * 0.42 + (Math.random() - 0.5) * 60  // mid-body area
+        : w * 0.72 + (Math.random() - 0.5) * 30; // head/neck area
+      const cy = acc.accType === 'cutie-mark'
+        ? h * 0.58 + (Math.random() - 0.5) * 40
+        : h * 0.32 + (Math.random() - 0.5) * 30;
       return { ...prev, [acc.id]: { x: cx, y: cy } };
     });
   };
@@ -373,11 +310,13 @@ export default function DressScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  // SVG offset within the unicornArea (SVG is centered horizontally, padded vertically)
   const svgLeft = unicornLayout.width > 0 ? (unicornLayout.width - SVG_W) / 2 : 0;
   const svgTop  = SVG_PAD_V;
-
   const hasAccessories = Object.keys(placedAccessories).length > 0;
+
+  // Split accessories for the tray section labels
+  const cutieMarks  = ACCESSORIES.filter((a) => a.accType === 'cutie-mark');
+  const wearables   = ACCESSORIES.filter((a) => a.accType === 'accessory');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
@@ -394,10 +333,7 @@ export default function DressScreen() {
             <Text style={[styles.sparklesLabel, { color: colors.midPurple }]}>Sparkles</Text>
             <Switch
               value={sparkles}
-              onValueChange={() => {
-                toggleSparkles();
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
+              onValueChange={() => { toggleSparkles(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
               trackColor={{ false: colors.border, true: colors.midPurple }}
               thumbColor="#ffffff"
             />
@@ -409,20 +345,12 @@ export default function DressScreen() {
           onLayout={(e) => setUnicornLayout(e.nativeEvent.layout)}
           style={[styles.unicornArea, { backgroundColor: colors.lavender, borderColor: colors.border }]}
         >
-          {/* Unicorn SVG — drawn first (back layer) */}
-          <UnicornSVG
-            colors={dressColors}
-            mode="dress"
-            sparkles={false}
-            onZonePress={handleZonePress}
-          />
+          <UnicornSVG colors={dressColors} mode="dress" sparkles={false} onZonePress={handleZonePress} />
 
-          {/* Animated sparkle overlay */}
           {sparkles && unicornLayout.width > 0 && (
             <SparkleOverlay svgLeft={svgLeft} svgTop={svgTop} />
           )}
 
-          {/* Draggable accessories (front layer) */}
           {Object.entries(placedAccessories).map(([id, pos]) => {
             const acc = ACCESSORIES.find((a) => a.id === id);
             if (!acc) return null;
@@ -434,9 +362,7 @@ export default function DressScreen() {
                 initialY={pos.y}
                 areaWidth={unicornLayout.width}
                 areaHeight={unicornLayout.height}
-                onPositionChange={(x, y) =>
-                  setPlacedAccessories((prev) => ({ ...prev, [id]: { x, y } }))
-                }
+                onPositionChange={(x, y) => setPlacedAccessories((p) => ({ ...p, [id]: { x, y } }))}
                 onDragStart={() => setIsDragging(true)}
                 onDragEnd={() => setIsDragging(false)}
               />
@@ -446,11 +372,11 @@ export default function DressScreen() {
 
         {hasAccessories && (
           <Text style={[styles.dragHint, { color: colors.textMuted }]}>
-            Drag accessories anywhere on your unicorn!
+            Drag accessories to move them
           </Text>
         )}
 
-        {/* ── Zone selector pills ────────────────────── */}
+        {/* ── Zone selector ──────────────────────────── */}
         <View style={styles.zonePills}>
           {ZONES.map((zone) => (
             <Pressable
@@ -466,12 +392,7 @@ export default function DressScreen() {
               ]}
             >
               <View style={[styles.zoneSwatch, { backgroundColor: dressColors[zone.id] }]} />
-              <Text
-                style={[
-                  styles.zonePillText,
-                  { color: selectedZone === zone.id ? '#fff' : colors.deepPurple },
-                ]}
-              >
+              <Text style={[styles.zonePillText, { color: selectedZone === zone.id ? '#fff' : colors.deepPurple }]}>
                 {zone.label}
               </Text>
             </Pressable>
@@ -498,56 +419,84 @@ export default function DressScreen() {
           </View>
         </View>
 
-        {/* ── Accessories tray ───────────────────────── */}
-        <View style={styles.accessoriesSection}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
-            Accessories — tap to add, drag to move
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.accessoryScroll}
-            scrollEnabled={!isDragging}
-          >
-            {ACCESSORIES.map((acc) => {
-              const isPlaced = !!placedAccessories[acc.id];
-              return (
-                <Pressable
-                  key={acc.id}
-                  onPress={() => handleAccessoryTap(acc)}
-                  style={({ pressed }) => [
-                    styles.accessoryChip,
-                    {
-                      backgroundColor: isPlaced ? acc.bgColor : colors.card,
-                      borderColor:     isPlaced ? acc.color  : colors.border,
-                      opacity: pressed ? 0.8 : 1,
-                    },
-                  ]}
-                >
-                  {acc.iconSet === 'Ionicons' ? (
-                    <Ionicons name={acc.iconName as any} size={28} color={acc.color} />
-                  ) : (
-                    <MaterialCommunityIcons name={acc.iconName as any} size={28} color={acc.color} />
-                  )}
-                  <Text style={[styles.accessoryLabel, { color: colors.textDark }]}>{acc.label}</Text>
-                  {isPlaced && (
-                    <View style={[styles.placedBadge, { backgroundColor: acc.color }]}>
-                      <Ionicons name="checkmark" size={10} color="#fff" />
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
+        {/* ── Cutie marks tray ───────────────────────── */}
+        <View style={styles.traySection}>
+          <View style={styles.trayHeader}>
+            <MaterialCommunityIcons name="star-four-points" size={14} color={colors.midPurple} />
+            <Text style={[styles.trayLabel, { color: colors.midPurple }]}>Cutie Marks</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled={!isDragging}>
+            <View style={styles.chipRow}>
+              {cutieMarks.map((acc) => {
+                const isPlaced = !!placedAccessories[acc.id];
+                return (
+                  <Pressable
+                    key={acc.id}
+                    onPress={() => handleAccessoryTap(acc)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      styles.cutieChip,
+                      {
+                        backgroundColor: isPlaced ? acc.bgColor : colors.card,
+                        borderColor:     isPlaced ? acc.color  : colors.border,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    {acc.iconSet === 'Ionicons'
+                      ? <Ionicons name={acc.iconName as any} size={26} color={acc.color} />
+                      : <MaterialCommunityIcons name={acc.iconName as any} size={26} color={acc.color} />
+                    }
+                    <Text style={[styles.chipLabel, { color: colors.textDark }]}>{acc.label}</Text>
+                    {isPlaced && <View style={[styles.chipBadge, { backgroundColor: acc.color }]}><Ionicons name="checkmark" size={9} color="#fff" /></View>}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* ── Wearable accessories tray ──────────────── */}
+        <View style={styles.traySection}>
+          <View style={styles.trayHeader}>
+            <MaterialCommunityIcons name="crown" size={14} color={colors.midPurple} />
+            <Text style={[styles.trayLabel, { color: colors.midPurple }]}>Accessories</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled={!isDragging}>
+            <View style={styles.chipRow}>
+              {wearables.map((acc) => {
+                const isPlaced = !!placedAccessories[acc.id];
+                return (
+                  <Pressable
+                    key={acc.id}
+                    onPress={() => handleAccessoryTap(acc)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      styles.wearChip,
+                      {
+                        backgroundColor: isPlaced ? acc.bgColor : colors.card,
+                        borderColor:     isPlaced ? acc.color  : colors.border,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    {acc.iconSet === 'Ionicons'
+                      ? <Ionicons name={acc.iconName as any} size={28} color={acc.color} />
+                      : <MaterialCommunityIcons name={acc.iconName as any} size={28} color={acc.color} />
+                    }
+                    <Text style={[styles.chipLabel, { color: colors.textDark }]}>{acc.label}</Text>
+                    {isPlaced && <View style={[styles.chipBadge, { backgroundColor: acc.color }]}><Ionicons name="checkmark" size={9} color="#fff" /></View>}
+                  </Pressable>
+                );
+              })}
+            </View>
           </ScrollView>
         </View>
 
         {/* ── Reset ─────────────────────────────────── */}
         <Pressable
           onPress={handleReset}
-          style={({ pressed }) => [
-            styles.resetBtn,
-            { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-          ]}
+          style={({ pressed }) => [styles.resetBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
         >
           <Ionicons name="refresh" size={16} color={colors.textMuted} />
           <Text style={[styles.resetText, { color: colors.textMuted }]}>Reset Everything</Text>
@@ -558,138 +507,115 @@ export default function DressScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1 },
-  scroll:     { paddingHorizontal: 16 },
+  container: { flex: 1 },
+  scroll:    { paddingHorizontal: 16 },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 16, paddingBottom: 8,
   },
   title:         { fontSize: 22, fontWeight: '700', fontFamily: 'Inter_700Bold' },
   sparklesRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sparklesLabel: { fontSize: 13, fontWeight: '500', fontFamily: 'Inter_500Medium' },
 
   unicornArea: {
-    borderRadius: 24,
-    borderWidth: 1,
+    borderRadius: 24, borderWidth: 1,
     paddingVertical: SVG_PAD_V,
     marginBottom: 6,
     overflow: 'hidden',
     minHeight: SVG_H + SVG_PAD_V * 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
 
   dragHint: {
-    textAlign: 'center',
-    fontSize: 12,
+    textAlign: 'center', fontSize: 12,
     fontFamily: 'Inter_400Regular',
-    marginBottom: 8,
-    marginTop: 2,
+    marginBottom: 8, marginTop: 2,
     fontStyle: 'italic',
   },
 
   zonePills: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
-    justifyContent: 'center',
-    marginTop: 8,
+    flexDirection: 'row', gap: 8,
+    marginBottom: 14, justifyContent: 'center', marginTop: 8,
   },
   zonePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1.5,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1.5,
   },
-  zoneSwatch:    { width: 12, height: 12, borderRadius: 6 },
-  zonePillText:  { fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
+  zoneSwatch:   { width: 12, height: 12, borderRadius: 6 },
+  zonePillText: { fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
 
   paletteSection: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 16,
+    borderRadius: 16, borderWidth: 1,
+    padding: 14, marginBottom: 14,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 10,
-    fontFamily: 'Inter_500Medium',
-    textAlign: 'center',
+    fontSize: 12, fontWeight: '500', marginBottom: 10,
+    fontFamily: 'Inter_500Medium', textAlign: 'center',
   },
   palette:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   swatch:        { width: 38, height: 38, borderRadius: 19 },
   swatchSelected: { borderWidth: 3, borderColor: '#26215C' },
 
-  accessoriesSection: { marginBottom: 16 },
-  accessoryScroll:    { marginTop: 8 },
-  accessoryChip: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    marginRight: 10,
-    minWidth: 70,
-    position: 'relative',
+  // ── Tray ────────────────────────────────────────────
+  traySection: { marginBottom: 14 },
+  trayHeader:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  trayLabel:   { fontSize: 12, fontWeight: '600', fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  chipRow:     { flexDirection: 'row', gap: 10 },
+
+  chip: {
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, position: 'relative',
   },
-  accessoryLabel: {
-    fontSize: 11,
-    marginTop: 4,
-    fontWeight: '500',
-    fontFamily: 'Inter_500Medium',
+  cutieChip: {
+    width: 72, paddingVertical: 10,
+    borderRadius: 18,
   },
-  placedBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  wearChip: {
+    width: 76, paddingVertical: 11,
+    borderRadius: 18,
+  },
+  chipLabel: { fontSize: 10, marginTop: 4, fontWeight: '500', fontFamily: 'Inter_500Medium' },
+  chipBadge: {
+    position: 'absolute', top: -5, right: -5,
+    width: 17, height: 17, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
   },
 
-  // Draggable accessory on the unicorn canvas
-  draggableAccessory: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
+  // ── On-canvas rendering ─────────────────────────────
+  draggableOuter: {
+    position: 'absolute', left: 0, top: 0,
     zIndex: 20,
-    width: ICON_SIZE,
-    height: ICON_SIZE,
+    width: ICON_SIZE, height: ICON_SIZE,
   },
-  accessoryBubble: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    borderRadius: ICON_HALF,
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#26215C',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22,
-    shadowRadius: 6,
-    elevation: 6,
+
+  // Cutie mark: flat stamp
+  cutieMarkWrap: {
+    width: ICON_SIZE, height: ICON_SIZE,
+    alignItems: 'center', justifyContent: 'center',
   },
+  cutieMarkHalo: {
+    position: 'absolute',
+    width: ICON_SIZE - 8,
+    height: ICON_SIZE - 8,
+    borderRadius: (ICON_SIZE - 8) / 2,
+  },
+
+  // Wearable: free-floating icon with drop shadow
+  wearableWrap: {
+    width: ICON_SIZE, height: ICON_SIZE,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  wearableIcon: {
+    textShadow: '0px 3px 5px rgba(0,0,0,0.22)',
+  } as any,
 
   resetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 4,
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 6,
+    padding: 12, borderRadius: 12, borderWidth: 1, marginTop: 4,
   },
   resetText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
 });
