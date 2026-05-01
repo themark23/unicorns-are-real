@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
   PanResponder,
   Platform,
   Pressable,
@@ -15,9 +16,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import UnicornSVG from '@/components/UnicornSVG';
 import { useUnicorn } from '@/context/UnicornContext';
+
 import { useColors } from '@/hooks/useColors';
+
+const UNICORN_IMG = require('../../assets/unicorn.png');
 
 type Zone = 'body' | 'mane' | 'horn' | 'tail';
 
@@ -345,7 +348,11 @@ export default function DressScreen() {
           onLayout={(e) => setUnicornLayout(e.nativeEvent.layout)}
           style={[styles.unicornArea, { backgroundColor: colors.lavender, borderColor: colors.border }]}
         >
-          <UnicornSVG colors={dressColors} mode="dress" sparkles={false} onZonePress={handleZonePress} />
+          <Image
+            source={UNICORN_IMG}
+            style={styles.unicornImg}
+            resizeMode="contain"
+          />
 
           {sparkles && unicornLayout.width > 0 && (
             <SparkleOverlay svgLeft={svgLeft} svgTop={svgTop} />
@@ -526,6 +533,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     minHeight: SVG_H + SVG_PAD_V * 2,
     alignItems: 'center', justifyContent: 'center',
+  },
+  unicornImg: {
+    width: SVG_W,
+    height: SVG_H + 20,
   },
 
   dragHint: {
