@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -271,8 +272,12 @@ export default function DressScreen() {
   const [isDragging, setIsDragging]   = useState(false);
   const [unicornLayout, setUnicornLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
+  const { width: screenWidth } = useWindowDimensions();
   const topPad    = Platform.OS === 'web' ? 67 : 0;
   const bottomPad = Platform.OS === 'web' ? 34 : 0;
+  // Image fills the scroll content width (screen − 16px padding × 2 − 2px border)
+  const imgWidth  = screenWidth - 34;
+  const imgHeight = imgWidth * (1402 / 1122);
 
   const handleZonePress = (zone: Zone) => {
     setSelectedZone(zone);
@@ -350,8 +355,8 @@ export default function DressScreen() {
         >
           <Image
             source={UNICORN_IMG}
-            style={styles.unicornImg}
-            resizeMode="contain"
+            style={{ width: imgWidth, height: imgHeight }}
+            resizeMode="cover"
           />
 
           {sparkles && unicornLayout.width > 0 && (
@@ -528,15 +533,8 @@ const styles = StyleSheet.create({
 
   unicornArea: {
     borderRadius: 24, borderWidth: 1,
-    paddingVertical: SVG_PAD_V,
     marginBottom: 6,
     overflow: 'hidden',
-    minHeight: SVG_H + SVG_PAD_V * 2,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  unicornImg: {
-    width: SVG_W,
-    height: SVG_H + 20,
   },
 
   dragHint: {
