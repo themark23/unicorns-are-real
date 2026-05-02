@@ -16,12 +16,17 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, {
+  Ellipse,
+  Path,
+  Rect,
+} from 'react-native-svg';
 
 import { useUnicorn } from '@/context/UnicornContext';
-
 import { useColors } from '@/hooks/useColors';
 
-const UNICORN_IMG = require('../../assets/unicorn.png');
+// Transparent line-art for dress canvas (white areas removed, only black outlines)
+const LINES_IMG = require('../../assets/unicorn_lines.png');
 
 type Zone = 'body' | 'mane' | 'horn' | 'tail';
 
@@ -351,12 +356,47 @@ export default function DressScreen() {
         {/* ── Unicorn canvas ─────────────────────────── */}
         <View
           onLayout={(e) => setUnicornLayout(e.nativeEvent.layout)}
-          style={[styles.unicornArea, { backgroundColor: colors.lavender, borderColor: colors.border }]}
+          style={[styles.unicornArea, { backgroundColor: '#ffffff', borderColor: colors.border }]}
         >
+          {/*
+            SVG canvas: 400×500 coord space (matches 1122×1402 line-art ratio).
+            Layer 1 – white background
+            Layer 2 – coloured zone fills driven by dressColors
+            Layer 3 – transparent line-art PNG (outlines always on top)
+          */}
+          <Svg viewBox="0 0 400 500" width={imgWidth} height={imgHeight}>
+
+            {/* ── Layer 1: White paper ─────────────────── */}
+            <Rect x={0} y={0} width={400} height={500} fill="#ffffff" />
+
+            {/* ── Layer 2: Zone colour fills ───────────── */}
+
+            {/* BODY — head, torso, legs */}
+            <Ellipse cx={190} cy={140} rx={78} ry={92}  fill={dressColors.body} />
+            <Ellipse cx={252} cy={315} rx={136} ry={92} fill={dressColors.body} />
+            <Rect    x={150} y={382}  width={185} height={72} fill={dressColors.body} />
+
+            {/* MANE */}
+            <Ellipse cx={144} cy={268} rx={62} ry={150} fill={dressColors.mane} />
+
+            {/* HORN */}
+            <Path d="M 190,2 L 216,110 L 166,110 Z"   fill={dressColors.horn} />
+
+            {/* TAIL */}
+            <Ellipse cx={354} cy={358} rx={68} ry={102} fill={dressColors.tail} />
+
+          </Svg>
+
+          {/* ── Layer 3: Transparent line-art (regular RN Image, same technique as coloring tab) */}
           <Image
-            source={UNICORN_IMG}
-            style={{ width: imgWidth, height: imgHeight }}
-            resizeMode="cover"
+            source={LINES_IMG}
+            style={{
+              position: 'absolute',
+              left: 0, top: 0,
+              width: imgWidth,
+              height: imgHeight,
+            }}
+            resizeMode="contain"
           />
 
           {sparkles && unicornLayout.width > 0 && (
