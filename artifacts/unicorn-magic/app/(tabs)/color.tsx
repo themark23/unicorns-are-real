@@ -13,7 +13,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { useColors } from '@/hooks/useColors';
 
@@ -41,12 +41,20 @@ const PALETTE = [
 /* ─── Brush sizes ─────────────────────────────────────────────────────────── */
 const BRUSHES = [3, 6, 12, 20];
 
-/* ─── Types ───────────────────────────────────────────────────────────────── */
+/* ─── Tap (stamp) radius for each brush slot ─────────────────────────────── */
+const TAP_RADII = [22, 34, 48, 64];
+
+/* ─── Drawing mode ───────────────────────────────────────────────────────── */
+type DrawMode = 'brush' | 'tap';
+
+/* ─── Mark types ──────────────────────────────────────────────────────────── */
 type Point = [number, number];
-interface Stroke { color: string; size: number; points: Point[] }
+interface StrokeMark { kind: 'stroke'; color: string; size: number; points: Point[] }
+interface DotMark    { kind: 'dot';    color: string; radius: number; x: number; y: number }
+type Mark = StrokeMark | DotMark;
 
 /* ─── Helper: stroke → SVG d string ──────────────────────────────────────── */
-function strokeToPath(stroke: Stroke): string {
+function strokeToPath(stroke: StrokeMark): string {
   const { points } = stroke;
   if (points.length === 0) return '';
   if (points.length === 1) {
@@ -74,14 +82,15 @@ export default function ColoringScreen() {
   const [pageIdx,   setPageIdx]   = useState(0);
   const [selColor,  setSelColor]  = useState(PALETTE[0]);
   const [brushIdx,  setBrushIdx]  = useState(1);
+  const [mode,      setMode]      = useState<DrawMode>('brush');
 
-  /* allStrokes[pageIndex] = Stroke[] */
-  const [allStrokes, setAllStrokes] = useState<Stroke[][]>(
+  /* allMarks[pageIndex] = Mark[] */
+  const [allMarks, setAllMarks] = useState<Mark[][]>(
     () => PAGES.map(() => [])
   );
-  /* the stroke currently being drawn (not yet committed) */
-  const activeStroke = useRef<Stroke | null>(null);
-  const [renderTick, setRenderTick] = useState(0); // force re-render mid-stroke
+  /* the stroke currently being drawn (brush mode only) */
+  const activeStroke = useRef<StrokeMark | null>(null);
+  const [renderTick, setRenderTick] = useState(0);
 
   /* ── Navigation ───────────────────────────── */
   const goNext = () => {
@@ -99,7 +108,7 @@ export default function ColoringScreen() {
 
   /* ── Clear current page ───────────────────── */
   const handleClear = () => {
-    setAllStrokes((prev) => {
+    setAllMarks((prev) => {
       const next = [...prev];
       next[pageIdx] = [];
       return next;
@@ -131,25 +140,43 @@ export default function ColoringScreen() {
     PanResponder.create({
       onStartShouldSetPanResponder:        () => true,
       onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponder:         () => true,
-      onMoveShouldSetPanResponderCapture:  () => true,
+      onMoveShouldSetPanResponder:         () => modeRef.current === 'brush',
+      onMoveShouldSetPanResponderCapture:  () => modeRef.current === 'brush',
 
       onPanResponderGrant: (evt) => {
         const { locationX: x, locationY: y } = evt.nativeEvent;
-        /* snapshot colour/brush at stroke start (refs would be stale) */
-        activeStroke.current = {
-          color: selColorRef.current,
-          size:  brushSizeRef.current,
-          points: [[x, y]],
-        };
-        setRenderTick((t) => t + 1);
+
+        if (modeRef.current === 'tap') {
+          /* Tap mode: stamp a filled circle immediately */
+          const dot: DotMark = {
+            kind:   'dot',
+            color:  selColorRef.current,
+            radius: TAP_RADII[brushIdxRef.current],
+            x,
+            y,
+          };
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setAllMarks((prev) => {
+            const next = [...prev];
+            next[pageIdxRef.current] = [...(next[pageIdxRef.current] ?? []), dot];
+            return next;
+          });
+        } else {
+          /* Brush mode: begin a new stroke */
+          activeStroke.current = {
+            kind:   'stroke',
+            color:  selColorRef.current,
+            size:   brushSizeRef.current,
+            points: [[x, y]],
+          };
+          setRenderTick((t) => t + 1);
+        }
       },
 
       onPanResponderMove: (evt) => {
-        if (!activeStroke.current) return;
+        if (modeRef.current !== 'brush' || !activeStroke.current) return;
         const { locationX: x, locationY: y } = evt.nativeEvent;
         const pts = activeStroke.current.points;
-        /* throttle: only add point if moved ≥ 2px */
         const last = pts[pts.length - 1];
         const dx = x - last[0], dy = y - last[1];
         if (dx * dx + dy * dy < 4) return;
@@ -161,10 +188,10 @@ export default function ColoringScreen() {
       },
 
       onPanResponderRelease: () => {
-        if (!activeStroke.current) return;
+        if (modeRef.current !== 'brush' || !activeStroke.current) return;
         const finished = activeStroke.current;
         activeStroke.current = null;
-        setAllStrokes((prev) => {
+        setAllMarks((prev) => {
           const next = [...prev];
           next[pageIdxRef.current] = [...(next[pageIdxRef.current] ?? []), finished];
           return next;
@@ -184,13 +211,18 @@ export default function ColoringScreen() {
   selColorRef.current = selColor;
   const brushSizeRef = useRef(BRUSHES[brushIdx]);
   brushSizeRef.current = BRUSHES[brushIdx];
+  const brushIdxRef  = useRef(brushIdx);
+  brushIdxRef.current = brushIdx;
   const pageIdxRef   = useRef(pageIdx);
   pageIdxRef.current = pageIdx;
+  const modeRef      = useRef(mode);
+  modeRef.current    = mode;
 
   /* ── Render ───────────────────────────────── */
   const page        = PAGES[pageIdx];
-  const strokes     = allStrokes[pageIdx] ?? [];
+  const marks       = allMarks[pageIdx] ?? [];
   const brushSize   = BRUSHES[brushIdx];
+  const tapRadius   = TAP_RADII[brushIdx];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad }]}>
@@ -216,6 +248,43 @@ export default function ColoringScreen() {
         </View>
       </View>
 
+      {/* ── Mode toggle ────────────────────── */}
+      <View style={[styles.modeRow, { borderColor: colors.border }]}>
+        <Pressable
+          onPress={() => { setMode('brush'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          style={[
+            styles.modeBtn,
+            mode === 'brush' && { backgroundColor: colors.midPurple },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="brush"
+            size={17}
+            color={mode === 'brush' ? '#fff' : colors.textMuted}
+          />
+          <Text style={[styles.modeBtnTxt, { color: mode === 'brush' ? '#fff' : colors.textMuted }]}>
+            Brush
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => { setMode('tap'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          style={[
+            styles.modeBtn,
+            mode === 'tap' && { backgroundColor: colors.midPurple },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="water"
+            size={17}
+            color={mode === 'tap' ? '#fff' : colors.textMuted}
+          />
+          <Text style={[styles.modeBtnTxt, { color: mode === 'tap' ? '#fff' : colors.textMuted }]}>
+            Tap to Color
+          </Text>
+        </Pressable>
+      </View>
+
       {/* ── Colour palette ─────────────────── */}
       <ScrollView
         horizontal
@@ -237,9 +306,11 @@ export default function ColoringScreen() {
         ))}
       </ScrollView>
 
-      {/* ── Brush size row ─────────────────── */}
+      {/* ── Brush / stamp size row ─────────── */}
       <View style={styles.brushRow}>
-        <Text style={[styles.brushLabel, { color: colors.textMuted }]}>Brush:</Text>
+        <Text style={[styles.brushLabel, { color: colors.textMuted }]}>
+          {mode === 'tap' ? 'Size:' : 'Brush:'}
+        </Text>
         {BRUSHES.map((sz, i) => (
           <Pressable
             key={sz}
@@ -253,14 +324,23 @@ export default function ColoringScreen() {
               styles.brushDot,
               {
                 backgroundColor: i === brushIdx ? colors.midPurple : colors.textMuted,
-                width: Math.min(sz * 1.4, 28),
-                height: Math.min(sz * 1.4, 28),
-                borderRadius: Math.min(sz * 0.7, 14),
+                width:  mode === 'tap' ? Math.min(TAP_RADII[i] * 0.55, 28) : Math.min(sz * 1.4, 28),
+                height: mode === 'tap' ? Math.min(TAP_RADII[i] * 0.55, 28) : Math.min(sz * 1.4, 28),
+                borderRadius: 14,
               },
             ]} />
           </Pressable>
         ))}
-        <View style={[styles.previewDot, { backgroundColor: selColor, width: brushSize * 1.4, height: brushSize * 1.4, borderRadius: brushSize * 0.7 }]} />
+        {/* live preview dot */}
+        <View style={[
+          styles.previewDot,
+          {
+            backgroundColor: selColor,
+            width:  mode === 'tap' ? Math.min(tapRadius * 0.55, 34) : brushSize * 1.4,
+            height: mode === 'tap' ? Math.min(tapRadius * 0.55, 34) : brushSize * 1.4,
+            borderRadius: 17,
+          },
+        ]} />
       </View>
 
       {/* ── Page navigation ────────────────── */}
@@ -314,20 +394,35 @@ export default function ColoringScreen() {
           height={canvasSize}
           pointerEvents="none"
         >
-          {/* committed strokes */}
-          {strokes.map((stroke, i) => (
-            <Path
-              key={i}
-              d={strokeToPath(stroke)}
-              stroke={stroke.color}
-              strokeWidth={stroke.size}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-              opacity={0.82}
-            />
-          ))}
-          {/* active (in-progress) stroke */}
+          {/* committed marks */}
+          {marks.map((mark, i) => {
+            if (mark.kind === 'dot') {
+              return (
+                <Circle
+                  key={i}
+                  cx={mark.x}
+                  cy={mark.y}
+                  r={mark.radius}
+                  fill={mark.color}
+                  opacity={0.82}
+                />
+              );
+            }
+            return (
+              <Path
+                key={i}
+                d={strokeToPath(mark)}
+                stroke={mark.color}
+                strokeWidth={mark.size}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+                opacity={0.82}
+              />
+            );
+          })}
+
+          {/* active (in-progress) brush stroke */}
           {activeStroke.current && (
             <Path
               d={strokeToPath(activeStroke.current)}
@@ -344,7 +439,9 @@ export default function ColoringScreen() {
 
       {/* ── Hint ───────────────────────────── */}
       <Text style={[styles.hint, { color: colors.textMuted }]}>
-        Draw with your finger · Tap Save to screenshot your art ✨
+        {mode === 'tap'
+          ? 'Tap anywhere to splash color ✨'
+          : 'Draw with your finger · Tap Save to screenshot your art ✨'}
       </Text>
 
     </View>
@@ -358,7 +455,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 14, paddingBottom: 10,
+    paddingTop: 14, paddingBottom: 8,
   },
   title: { fontSize: 24, fontWeight: '700', fontFamily: 'Inter_700Bold' },
   headerBtns: { flexDirection: 'row', gap: 8 },
@@ -369,7 +466,28 @@ const styles = StyleSheet.create({
   },
   hdrBtnTxt: { fontSize: 12, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
 
-  paletteScroll:  { flexGrow: 0, marginBottom: 8 },
+  modeRow: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  modeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  modeBtnTxt: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
+  },
+
+  paletteScroll:  { flexGrow: 0, marginBottom: 6 },
   paletteContent: { paddingRight: 16, gap: 8, flexDirection: 'row', alignItems: 'center' },
   swatch:         { width: 34, height: 34, borderRadius: 17 },
   swatchWhite:    { borderWidth: 1, borderColor: '#ccc' },
@@ -377,7 +495,7 @@ const styles = StyleSheet.create({
 
   brushRow:  {
     flexDirection: 'row', alignItems: 'center',
-    gap: 8, marginBottom: 10,
+    gap: 8, marginBottom: 8,
   },
   brushLabel: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   brushBtn: {
