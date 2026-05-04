@@ -15,27 +15,10 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, {
-  Ellipse,
-  Path,
-  Rect,
-} from 'react-native-svg';
-
 import { useUnicorn } from '@/context/UnicornContext';
 import { useColors } from '@/hooks/useColors';
 
-// Transparent line-art for dress canvas (white areas removed, only black outlines)
-const LINES_IMG = require('../../assets/unicorn_lines.png');
-
-type Zone = 'body' | 'mane' | 'horn' | 'tail';
-
-const ZONES: { id: Zone; label: string }[] = [
-  { id: 'body', label: 'Body' },
-  { id: 'mane', label: 'Mane' },
-  { id: 'horn', label: 'Horn' },
-  { id: 'tail', label: 'Tail' },
-];
+const UNICORN_IMG = require('../../assets/unicorn.png');
 
 // ─── Accessory types ─────────────────────────────────────────────────────────
 // 'cutie-mark' → flat stamp rendered directly on the unicorn (no bubble)
@@ -267,11 +250,7 @@ function DraggableAccessory({ acc, initialX, initialY, areaWidth, areaHeight, on
 
 export default function DressScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const {
-    dressColors, sparkles, selectedZone,
-    setDressColor, toggleSparkles, setSelectedZone, resetDressColors,
-  } = useUnicorn();
+  const { sparkles, toggleSparkles } = useUnicorn();
 
   const [placedAccessories, setPlacedAccessories] = useState<Record<string, { x: number; y: number }>>({});
   const [isDragging, setIsDragging]   = useState(false);
@@ -283,18 +262,6 @@ export default function DressScreen() {
   // Image fills the scroll content width (screen − 16px padding × 2 − 2px border)
   const imgWidth  = screenWidth - 34;
   const imgHeight = imgWidth * (1402 / 1122);
-
-  const handleZonePress = (zone: Zone) => {
-    setSelectedZone(zone);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const handleColorPress = (color: string) => {
-    if (selectedZone) {
-      setDressColor(selectedZone, color);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
 
   const handleAccessoryTap = (acc: AccessoryItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -318,7 +285,6 @@ export default function DressScreen() {
   };
 
   const handleReset = () => {
-    resetDressColors();
     setPlacedAccessories({});
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
@@ -358,45 +324,10 @@ export default function DressScreen() {
           onLayout={(e) => setUnicornLayout(e.nativeEvent.layout)}
           style={[styles.unicornArea, { backgroundColor: '#ffffff', borderColor: colors.border }]}
         >
-          {/*
-            SVG canvas: 400×500 coord space (matches 1122×1402 line-art ratio).
-            Layer 1 – white background
-            Layer 2 – coloured zone fills driven by dressColors
-            Layer 3 – transparent line-art PNG (outlines always on top)
-          */}
-          <Svg viewBox="0 0 400 500" width={imgWidth} height={imgHeight}>
-
-            {/* ── Layer 1: White paper ─────────────────── */}
-            <Rect x={0} y={0} width={400} height={500} fill="#ffffff" />
-
-            {/* ── Layer 2: Zone colour fills ───────────── */}
-
-            {/* BODY — head, torso, legs */}
-            <Ellipse cx={190} cy={140} rx={78} ry={92}  fill={dressColors.body} />
-            <Ellipse cx={252} cy={315} rx={136} ry={92} fill={dressColors.body} />
-            <Rect    x={150} y={382}  width={185} height={72} fill={dressColors.body} />
-
-            {/* MANE */}
-            <Ellipse cx={144} cy={268} rx={62} ry={150} fill={dressColors.mane} />
-
-            {/* HORN */}
-            <Path d="M 190,2 L 216,110 L 166,110 Z"   fill={dressColors.horn} />
-
-            {/* TAIL */}
-            <Ellipse cx={354} cy={358} rx={68} ry={102} fill={dressColors.tail} />
-
-          </Svg>
-
-          {/* ── Layer 3: Transparent line-art (regular RN Image, same technique as coloring tab) */}
           <Image
-            source={LINES_IMG}
-            style={{
-              position: 'absolute',
-              left: 0, top: 0,
-              width: imgWidth,
-              height: imgHeight,
-            }}
-            resizeMode="contain"
+            source={UNICORN_IMG}
+            style={{ width: imgWidth, height: imgHeight }}
+            resizeMode="cover"
           />
 
           {sparkles && unicornLayout.width > 0 && (
@@ -427,49 +358,6 @@ export default function DressScreen() {
             Drag accessories to move them
           </Text>
         )}
-
-        {/* ── Zone selector ──────────────────────────── */}
-        <View style={styles.zonePills}>
-          {ZONES.map((zone) => (
-            <Pressable
-              key={zone.id}
-              onPress={() => handleZonePress(zone.id)}
-              style={({ pressed }) => [
-                styles.zonePill,
-                {
-                  backgroundColor: selectedZone === zone.id ? colors.midPurple : colors.card,
-                  borderColor:     selectedZone === zone.id ? colors.midPurple : colors.border,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <View style={[styles.zoneSwatch, { backgroundColor: dressColors[zone.id] }]} />
-              <Text style={[styles.zonePillText, { color: selectedZone === zone.id ? '#fff' : colors.deepPurple }]}>
-                {zone.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* ── Color palette ──────────────────────────── */}
-        <View style={[styles.paletteSection, { borderColor: colors.border }]}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
-            {selectedZone ? `Tap a color for the ${selectedZone}` : 'Select a zone above'}
-          </Text>
-          <View style={styles.palette}>
-            {colors.palette.map((color) => (
-              <Pressable
-                key={color}
-                onPress={() => handleColorPress(color)}
-                style={({ pressed }) => [
-                  styles.swatch,
-                  { backgroundColor: color, opacity: pressed ? 0.8 : 1 },
-                  selectedZone && dressColors[selectedZone] === color && styles.swatchSelected,
-                ]}
-              />
-            ))}
-          </View>
-        </View>
 
         {/* ── Cutie marks tray ───────────────────────── */}
         <View style={styles.traySection}>
@@ -583,30 +471,6 @@ const styles = StyleSheet.create({
     marginBottom: 8, marginTop: 2,
     fontStyle: 'italic',
   },
-
-  zonePills: {
-    flexDirection: 'row', gap: 8,
-    marginBottom: 14, justifyContent: 'center', marginTop: 8,
-  },
-  zonePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 20, borderWidth: 1.5,
-  },
-  zoneSwatch:   { width: 12, height: 12, borderRadius: 6 },
-  zonePillText: { fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
-
-  paletteSection: {
-    borderRadius: 16, borderWidth: 1,
-    padding: 14, marginBottom: 14,
-  },
-  sectionLabel: {
-    fontSize: 12, fontWeight: '500', marginBottom: 10,
-    fontFamily: 'Inter_500Medium', textAlign: 'center',
-  },
-  palette:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-  swatch:        { width: 38, height: 38, borderRadius: 19 },
-  swatchSelected: { borderWidth: 3, borderColor: '#26215C' },
 
   // ── Tray ────────────────────────────────────────────
   traySection: { marginBottom: 14 },
