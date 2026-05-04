@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   Alert,
@@ -226,6 +227,10 @@ export default function ColoringScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad }]}>
+      <LinearGradient
+        colors={['#FFD6EC', '#EDD6FF', '#D6EEFF', '#D6FFE8']}
+        style={StyleSheet.absoluteFillObject}
+      />
 
       {/* ── Header ─────────────────────────── */}
       <View style={styles.header}>
