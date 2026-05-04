@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -13,13 +13,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ClipPath, Defs, Path, Rect, Svg } from 'react-native-svg';
+import { Circle, ClipPath, Defs, Path, Rect, Svg } from 'react-native-svg';
 
 import { MAGIC_POTIONS, MagicPotion } from '@/constants/potions';
 import { useColors } from '@/hooks/useColors';
 
 // Allow Animated values as SVG props
-const AnimatedRect = Animated.createAnimatedComponent(Rect as any);
+const AnimatedRect   = Animated.createAnimatedComponent(Rect   as any);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle as any);
 
 // ── Brewing is only enabled for this one potion (for now) ────────────────────
 const BREW_POTION_ID = 'p1';
@@ -45,6 +46,36 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
 
   const total      = potion.ingredients.length;
   const isComplete = brewed.size === total;
+
+  // 3 bubbles rising at different speeds + x positions
+  const bubbleAnims = useRef([
+    new Animated.Value(0.0),
+    new Animated.Value(0.4),
+    new Animated.Value(0.72),
+  ]).current;
+  // 4 sparkles that blink at fixed positions in the liquid
+  const sparkleAnims = useRef([0, 0, 0, 0].map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    // Rising bubble loops — each at a different speed
+    const DURATIONS = [2400, 3100, 2750];
+    bubbleAnims.forEach((anim, i) => {
+      Animated.loop(
+        Animated.timing(anim, { toValue: 1, duration: DURATIONS[i], easing: Easing.linear, useNativeDriver: false })
+      ).start();
+    });
+    // Blinking sparkle loops — staggered delays
+    sparkleAnims.forEach((anim, i) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 450),
+          Animated.timing(anim, { toValue: 1, duration: 260, useNativeDriver: false }),
+          Animated.timing(anim, { toValue: 0, duration: 380, useNativeDriver: false }),
+          Animated.delay(900 + i * 250),
+        ])
+      ).start();
+    });
+  }, []);
 
   // Bottle fill: liquid rect top edge animated from 158 (empty) → 28 (full)
   const fillY  = fillAnim.interpolate({ inputRange: [0, 1], outputRange: [158, 28] });
@@ -158,6 +189,52 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
               opacity="0.78"
               clipPath={`url(#brew-${potion.id})`}
             />
+
+            {/* ── Bubbles: 3 circles rising at different speeds ── */}
+            {brewed.size > 0 && (() => {
+              const CX = [32, 54, 70];   // x lanes
+              const R  = [4,  5,  3.5]; // radii
+              return bubbleAnims.map((anim, i) => {
+                const cy = anim.interpolate({ inputRange: [0, 1], outputRange: [152, 30] });
+                // gentle left-right wobble using same progress value
+                const cx = anim.interpolate({
+                  inputRange: [0, 0.2, 0.5, 0.8, 1],
+                  outputRange: [CX[i], CX[i] + 5, CX[i] - 4, CX[i] + 3, CX[i]],
+                });
+                // fade in at bottom, fade out at top
+                const op = anim.interpolate({
+                  inputRange: [0, 0.08, 0.85, 1],
+                  outputRange: [0, 0.75, 0.75, 0],
+                });
+                return (
+                  <AnimatedCircle
+                    key={`b${i}`}
+                    cx={cx as any}
+                    cy={cy as any}
+                    r={R[i]}
+                    fill="white"
+                    opacity={op as any}
+                    clipPath={`url(#brew-${potion.id})`}
+                  />
+                );
+              });
+            })()}
+
+            {/* ── Sparkles: 4 tiny circles that blink inside liquid ── */}
+            {brewed.size > 0 && (() => {
+              const POSITIONS = [[38, 120], [64, 100], [44, 138], [68, 115]];
+              return sparkleAnims.map((anim, i) => (
+                <AnimatedCircle
+                  key={`sp${i}`}
+                  cx={POSITIONS[i][0]}
+                  cy={POSITIONS[i][1]}
+                  r="2.5"
+                  fill="white"
+                  opacity={anim as any}
+                  clipPath={`url(#brew-${potion.id})`}
+                />
+              ));
+            })()}
 
             {/* Glass shine highlight */}
             <Path
