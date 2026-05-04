@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -44,16 +45,27 @@ const BRUSHES = [3, 6, 12, 20];
 
 type DrawMode = 'brush' | 'fill';
 
-/* ─── Resolve image URI (file:// on native, remote URI on web) ───────────── */
-async function loadImageUri(module: number): Promise<string> {
+/* ─── Write canvas HTML to a temp file and return its file:// URI ─────────
+ *  Embedding a 1.5 MB+ image as base64 crashes Expo Go; passing a file:// URI
+ *  in inline HTML is blocked by iOS WKWebView. The only reliable approach is
+ *  to write the full HTML to disk and load the WebView from that local file —
+ *  WKWebView allows local-file sources to reference other local files freely.
+ * ─────────────────────────────────────────────────────────────────────────── */
+async function prepareHtmlFile(
+  module: number,
+  color: string,
+  mode: DrawMode,
+  brushSize: number,
+): Promise<string> {
   const asset = Asset.fromModule(module);
   await asset.downloadAsync();
-  // On native return the local file:// path so the WebView can load it
-  // directly — avoids base64-encoding 1.5 MB+ images into the HTML string.
-  if (Platform.OS !== 'web') {
-    return asset.localUri!;
-  }
-  return asset.uri;
+  const imageUri = asset.localUri!;          // file:// path to the PNG
+  const html     = buildHtml(imageUri, color, mode, brushSize);
+  const htmlPath = `${FileSystem.cacheDirectory}unicorn_canvas.html`;
+  await FileSystem.writeAsStringAsync(htmlPath, html, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+  return htmlPath;                            // file:// URI ready for WebView
 }
 
 /* ─── Build WebView HTML ──────────────────────────────────────────────────── */
@@ -223,18 +235,19 @@ export default function ColoringScreen() {
   const [brushIdx, setBrushIdx] = useState(1);
   const [mode,     setMode]     = useState<DrawMode>('fill');
 
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [loading,  setLoading]  = useState(true);
+  const [htmlFileUri, setHtmlFileUri] = useState<string | null>(null);
+  const [loading,     setLoading]     = useState(true);
 
   const webViewRef = useRef<WebView>(null);
 
-  /* ── Load image for current page ── */
+  /* ── Prepare HTML file for current page ── */
   useEffect(() => {
     setLoading(true);
-    setImageUri(null);
-    loadImageUri(PAGES[pageIdx].src)
-      .then((uri) => { setImageUri(uri); setLoading(false); })
+    setHtmlFileUri(null);
+    prepareHtmlFile(PAGES[pageIdx].src, selColor, mode, BRUSHES[brushIdx])
+      .then((path) => { setHtmlFileUri(path); setLoading(false); })
       .catch(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageIdx]);
 
   /* ── Sync settings to WebView when they change ── */
@@ -403,16 +416,16 @@ export default function ColoringScreen() {
 
       {/* ── Canvas ── */}
       <View style={[styles.canvasWrap, { width: canvasSize, height: canvasSize, borderColor: colors.border }]}>
-        {loading || !imageUri ? (
+        {loading || !htmlFileUri ? (
           <View style={styles.loader}>
             <ActivityIndicator size="large" color={colors.midPurple} />
             <Text style={[styles.loaderTxt, { color: colors.textMuted }]}>Loading page…</Text>
           </View>
         ) : (
           <WebView
-            key={`${pageIdx}-${imageUri.slice(-20)}`}
+            key={`page-${pageIdx}`}
             ref={webViewRef}
-            source={{ html: buildHtml(imageUri, selColor, mode, BRUSHES[brushIdx]), baseUrl: 'file:///' }}
+            source={{ uri: htmlFileUri }}
             style={styles.webView}
             scrollEnabled={false}
             bounces={false}
@@ -421,7 +434,7 @@ export default function ColoringScreen() {
             allowUniversalAccessFromFileURLs
             allowFileAccessFromFileURLs
             mixedContentMode="always"
-            originWhitelist={['*']}
+            originWhitelist={['*', 'file://*']}
           />
         )}
       </View>
