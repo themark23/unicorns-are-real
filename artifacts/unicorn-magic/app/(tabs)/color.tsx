@@ -56,10 +56,10 @@ async function loadAsBase64(module: number): Promise<string> {
 }
 
 /* ─── Build WebView HTML ──────────────────────────────────────────────────── */
-function buildHtml(dataUrl: string, color: string, mode: DrawMode, brushSize: number): string {
+function buildHtml(dataUrl: string, color: string, mode: DrawMode, brushSize: number, vpWidth: number): string {
   return /* html */`<!DOCTYPE html>
 <html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=${vpWidth},initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{width:100%;height:100%;overflow:hidden;background:#fff}
@@ -89,9 +89,15 @@ img.src='${dataUrl}';
 function hexToRgb(h){
   return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
 }
+/* offsetX/offsetY are relative to the canvas element itself — no rect
+   subtraction needed, immune to viewport-width vs WebView-width mismatch. */
 function canvasPos(e){
-  var r=canvas.getBoundingClientRect();
-  return[(e.clientX-r.left)*(SZ/r.width),(e.clientY-r.top)*(SZ/r.height)];
+  var ox=e.offsetX,oy=e.offsetY;
+  if(ox===undefined||ox===null){
+    var r=canvas.getBoundingClientRect();
+    ox=(e.clientX-r.left);oy=(e.clientY-r.top);
+  }
+  return[ox*(SZ/canvas.offsetWidth),oy*(SZ/canvas.offsetHeight)];
 }
 
 /* ── scanline flood fill ── */
@@ -106,9 +112,12 @@ function floodFill(sx,sy){
   var fc=hexToRgb(color),fr=fc[0],fg=fc[1],fb=fc[2];
   if(sr===fr&&sg===fg&&sb===fb)return;
 
-  var TOL=45;
+  /* Euclidean tolerance — more forgiving of grayscale anti-aliasing while
+     still stopping firmly at dark lines (TOL²=2500 ≈ 50 per channel max). */
+  var TOL2=2500;
   function match(i){
-    return Math.abs(d[i]-sr)<=TOL&&Math.abs(d[i+1]-sg)<=TOL&&Math.abs(d[i+2]-sb)<=TOL;
+    var dr=d[i]-sr,dg=d[i+1]-sg,db=d[i+2]-sb;
+    return dr*dr+dg*dg+db*db<=TOL2;
   }
   function paint(i){d[i]=fr;d[i+1]=fg;d[i+2]=fb;d[i+3]=255;}
 
@@ -413,7 +422,7 @@ export default function ColoringScreen() {
           <WebView
             key={`${pageIdx}-${imageDataUrl.slice(0, 30)}`}
             ref={webViewRef}
-            source={{ html: buildHtml(imageDataUrl, selColor, mode, BRUSHES[brushIdx]) }}
+            source={{ html: buildHtml(imageDataUrl, selColor, mode, BRUSHES[brushIdx], canvasSize) }}
             style={styles.webView}
             scrollEnabled={false}
             bounces={false}
