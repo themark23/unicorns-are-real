@@ -1,7 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -271,6 +272,8 @@ function DraggableAccessory({ acc, initialX, initialY, areaWidth, areaHeight, on
 
 // ─── DressScreen ──────────────────────────────────────────────────────────────
 
+const SAVE_KEY = '@unicorn_dress_save';
+
 export default function DressScreen() {
   const colors = useColors();
   const { sparkles, toggleSparkles } = useUnicorn();
@@ -278,13 +281,38 @@ export default function DressScreen() {
   const [placedAccessories, setPlacedAccessories] = useState<Record<string, { x: number; y: number }>>({});
   const [isDragging, setIsDragging]   = useState(false);
   const [unicornLayout, setUnicornLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { width: screenWidth } = useWindowDimensions();
   const topPad    = Platform.OS === 'web' ? 67 : 0;
   const bottomPad = Platform.OS === 'web' ? 34 : 0;
-  // Image fills the scroll content width (screen − 16px padding × 2 − 2px border)
   const imgWidth  = screenWidth - 34;
   const imgHeight = imgWidth * (1402 / 1122);
+
+  // ── Load saved design on mount ─────────────────────
+  useEffect(() => {
+    AsyncStorage.getItem(SAVE_KEY).then((json) => {
+      if (json) {
+        try { setPlacedAccessories(JSON.parse(json)); } catch (_) {}
+      }
+    });
+  }, []);
+
+  const showToast = useCallback(() => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.delay(1400),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 340, useNativeDriver: true }),
+    ]).start();
+  }, [toastOpacity]);
+
+  const handleSave = useCallback(async () => {
+    await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(placedAccessories));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast();
+  }, [placedAccessories, showToast]);
 
   const handleAccessoryTap = (acc: AccessoryItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -307,10 +335,11 @@ export default function DressScreen() {
     });
   };
 
-  const handleReset = () => {
+  const handleReset = useCallback(async () => {
     setPlacedAccessories({});
+    await AsyncStorage.removeItem(SAVE_KEY);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  };
+  }, []);
 
   const svgLeft = unicornLayout.width > 0 ? (unicornLayout.width - SVG_W) / 2 : 0;
   const svgTop  = SVG_PAD_V;
@@ -464,15 +493,35 @@ export default function DressScreen() {
           </ScrollView>
         </View>
 
-        {/* ── Reset ─────────────────────────────────── */}
-        <Pressable
-          onPress={handleReset}
-          style={({ pressed }) => [styles.resetBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Ionicons name="refresh" size={16} color={colors.textMuted} />
-          <Text style={[styles.resetText, { color: colors.textMuted }]}>Reset Everything</Text>
-        </Pressable>
+        {/* ── Save / Reset row ──────────────────────── */}
+        <View style={styles.actionRow}>
+          <Pressable
+            onPress={handleSave}
+            style={({ pressed }) => [styles.saveBtn, { backgroundColor: colors.midPurple, opacity: pressed ? 0.8 : 1 }]}
+          >
+            <MaterialCommunityIcons name="content-save-outline" size={17} color="#fff" />
+            <Text style={styles.saveBtnText}>Save Design</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleReset}
+            style={({ pressed }) => [styles.resetBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Ionicons name="refresh" size={15} color={colors.textMuted} />
+            <Text style={[styles.resetText, { color: colors.textMuted }]}>Reset</Text>
+          </Pressable>
+        </View>
       </ScrollView>
+
+      {/* ── Saved toast ────────────────────────────── */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.toast, { opacity: toastOpacity }]}
+      >
+        <MaterialCommunityIcons name="star-four-points" size={16} color="#fff" />
+        <Text style={styles.toastText}>Design Saved!</Text>
+        <MaterialCommunityIcons name="star-four-points" size={16} color="#fff" />
+      </Animated.View>
     </View>
   );
 }
@@ -556,10 +605,47 @@ const styles = StyleSheet.create({
     textShadow: '0px 3px 5px rgba(0,0,0,0.22)',
   } as any,
 
+  // ── Save / Reset row ────────────────────────────────
+  actionRow: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: 10, marginTop: 4, marginBottom: 4,
+  },
+
+  saveBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 7,
+    paddingVertical: 13, borderRadius: 14,
+  },
+  saveBtnText: {
+    color: '#fff', fontSize: 14,
+    fontWeight: '700', fontFamily: 'Inter_700Bold',
+  },
+
   resetBtn: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', gap: 6,
-    padding: 12, borderRadius: 12, borderWidth: 1, marginTop: 4,
+    justifyContent: 'center', gap: 5,
+    paddingVertical: 13, paddingHorizontal: 16,
+    borderRadius: 14, borderWidth: 1,
   },
   resetText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+
+  // ── Saved toast ──────────────────────────────────────
+  toast: {
+    position: 'absolute',
+    bottom: 90,
+    alignSelf: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#534AB7',
+    paddingHorizontal: 22, paddingVertical: 12,
+    borderRadius: 30,
+    shadowColor: '#534AB7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  toastText: {
+    color: '#fff', fontSize: 15,
+    fontWeight: '700', fontFamily: 'Inter_700Bold',
+  },
 });
