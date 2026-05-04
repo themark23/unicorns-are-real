@@ -45,27 +45,14 @@ const BRUSHES = [3, 6, 12, 20];
 
 type DrawMode = 'brush' | 'fill';
 
-/* ─── Write canvas HTML to a temp file and return its file:// URI ─────────
- *  Embedding a 1.5 MB+ image as base64 crashes Expo Go; passing a file:// URI
- *  in inline HTML is blocked by iOS WKWebView. The only reliable approach is
- *  to write the full HTML to disk and load the WebView from that local file —
- *  WKWebView allows local-file sources to reference other local files freely.
- * ─────────────────────────────────────────────────────────────────────────── */
-async function prepareHtmlFile(
-  module: number,
-  color: string,
-  mode: DrawMode,
-  brushSize: number,
-): Promise<string> {
+/* ─── Load image as base64 data URL ─────────────────────────────────────── */
+async function loadAsBase64(module: number): Promise<string> {
   const asset = Asset.fromModule(module);
   await asset.downloadAsync();
-  const imageUri = asset.localUri!;          // file:// path to the PNG
-  const html     = buildHtml(imageUri, color, mode, brushSize);
-  const htmlPath = `${FileSystem.cacheDirectory}unicorn_canvas.html`;
-  await FileSystem.writeAsStringAsync(htmlPath, html, {
-    encoding: FileSystem.EncodingType.UTF8,
+  const b64 = await FileSystem.readAsStringAsync(asset.localUri!, {
+    encoding: FileSystem.EncodingType.Base64,
   });
-  return htmlPath;                            // file:// URI ready for WebView
+  return `data:image/png;base64,${b64}`;
 }
 
 /* ─── Build WebView HTML ──────────────────────────────────────────────────── */
@@ -235,19 +222,20 @@ export default function ColoringScreen() {
   const [brushIdx, setBrushIdx] = useState(1);
   const [mode,     setMode]     = useState<DrawMode>('fill');
 
-  const [htmlFileUri, setHtmlFileUri] = useState<string | null>(null);
-  const [loading,     setLoading]     = useState(true);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [loading,      setLoading]      = useState(true);
 
   const webViewRef = useRef<WebView>(null);
 
-  /* ── Prepare HTML file for current page ── */
+  /* ── Load image for current page ── */
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    setHtmlFileUri(null);
-    prepareHtmlFile(PAGES[pageIdx].src, selColor, mode, BRUSHES[brushIdx])
-      .then((path) => { setHtmlFileUri(path); setLoading(false); })
-      .catch(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setImageDataUrl(null);
+    loadAsBase64(PAGES[pageIdx].src)
+      .then((url) => { if (!cancelled) { setImageDataUrl(url); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [pageIdx]);
 
   /* ── Sync settings to WebView when they change ── */
@@ -416,25 +404,23 @@ export default function ColoringScreen() {
 
       {/* ── Canvas ── */}
       <View style={[styles.canvasWrap, { width: canvasSize, height: canvasSize, borderColor: colors.border }]}>
-        {loading || !htmlFileUri ? (
+        {loading || !imageDataUrl ? (
           <View style={styles.loader}>
             <ActivityIndicator size="large" color={colors.midPurple} />
             <Text style={[styles.loaderTxt, { color: colors.textMuted }]}>Loading page…</Text>
           </View>
         ) : (
           <WebView
-            key={`page-${pageIdx}`}
+            key={`${pageIdx}-${imageDataUrl.slice(0, 30)}`}
             ref={webViewRef}
-            source={{ uri: htmlFileUri }}
+            source={{ html: buildHtml(imageDataUrl, selColor, mode, BRUSHES[brushIdx]) }}
             style={styles.webView}
             scrollEnabled={false}
             bounces={false}
             onMessage={onMessage}
             allowFileAccess
-            allowUniversalAccessFromFileURLs
-            allowFileAccessFromFileURLs
             mixedContentMode="always"
-            originWhitelist={['*', 'file://*']}
+            originWhitelist={['*']}
           />
         )}
       </View>
