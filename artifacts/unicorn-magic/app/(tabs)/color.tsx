@@ -93,7 +93,8 @@ var img=new Image();
 
 img.onload=function(){
   ctx.globalAlpha=1;
-  ctx.drawImage(img,0,0,SZ,SZ);
+  var dw=SZ*1.3,dh=SZ*1.3,dx=(SZ-dw)/2,dy=(SZ-dh)/2;
+  ctx.drawImage(img,dx,dy,dw,dh);
 };
 img.src='${dataUrl}';
 
@@ -215,7 +216,8 @@ function updateSettings(c,m,s){color=c;mode=m;brushSize=s;}
 function clearCanvas(){
   ctx.globalAlpha=1;
   ctx.clearRect(0,0,SZ,SZ);
-  ctx.drawImage(img,0,0,SZ,SZ);
+  var dw=SZ*1.3,dh=SZ*1.3,dx=(SZ-dw)/2,dy=(SZ-dh)/2;
+  ctx.drawImage(img,dx,dy,dw,dh);
 }
 </script>
 </body></html>`;

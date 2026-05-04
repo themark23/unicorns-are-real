@@ -141,7 +141,13 @@ function ColorCanvas({ imageUri, color, mode, brushSize, clearTick }: CanvasProp
 
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => { ctx.globalAlpha = 1; ctx.drawImage(img, 0, 0, CANVAS_SZ, CANVAS_SZ); };
+    img.onload = () => {
+      ctx.globalAlpha = 1;
+      // Zoom 1.3× centered to crop white side borders and fill the square
+      const dw = CANVAS_SZ * 1.3, dh = CANVAS_SZ * 1.3;
+      const dx = (CANVAS_SZ - dw) / 2,  dy = (CANVAS_SZ - dh) / 2;
+      ctx.drawImage(img, dx, dy, dw, dh);
+    };
     img.src = imageUri;
     imgRef.current = img;
 
@@ -211,10 +217,15 @@ function ColorCanvas({ imageUri, color, mode, brushSize, clearTick }: CanvasProp
     const ctx = ctxRef.current;
     ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, CANVAS_SZ, CANVAS_SZ);
+    const drawImg = (i: HTMLImageElement) => {
+      const dw = CANVAS_SZ * 1.3, dh = CANVAS_SZ * 1.3;
+      const dx = (CANVAS_SZ - dw) / 2,  dy = (CANVAS_SZ - dh) / 2;
+      ctx.drawImage(i, dx, dy, dw, dh);
+    };
     if (imgRef.current.complete) {
-      ctx.drawImage(imgRef.current, 0, 0, CANVAS_SZ, CANVAS_SZ);
+      drawImg(imgRef.current);
     } else {
-      imgRef.current.onload = () => ctx.drawImage(imgRef.current!, 0, 0, CANVAS_SZ, CANVAS_SZ);
+      imgRef.current.onload = () => drawImg(imgRef.current!);
     }
   }, [clearTick]);
 
