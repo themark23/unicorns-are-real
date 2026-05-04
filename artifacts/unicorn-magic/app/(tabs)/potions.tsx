@@ -22,8 +22,6 @@ import { useColors } from '@/hooks/useColors';
 const AnimatedRect   = Animated.createAnimatedComponent(Rect   as any);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle as any);
 
-// ── Brewing is only enabled for this one potion (for now) ────────────────────
-const BREW_POTION_ID = 'p1';
 
 // Burst particle colours + geometry
 const PARTICLE_COLORS = ['#FFD700', '#FF69B4', '#87CEEB', '#FF8C00', '#98FB98', '#DDA0DD', '#F0E68C', '#FF69B4'];
@@ -354,8 +352,7 @@ export default function PotionsScreen() {
         </View>
 
         {MAGIC_POTIONS.map((potion) => {
-          const isExpanded   = expandedId === potion.id;
-          const isBrewing    = potion.id === BREW_POTION_ID;
+          const isExpanded = expandedId === potion.id;
 
           return (
             <Pressable
@@ -381,13 +378,6 @@ export default function PotionsScreen() {
                   </LinearGradient>
                 )}
                 <View style={styles.cardInfo}>
-                  {/* Brew badge for the interactive potion */}
-                  {isBrewing && (
-                    <View style={[styles.brewBadge, { backgroundColor: potion.accentColor + '22', borderColor: potion.accentColor + '55' }]}>
-                      <MaterialCommunityIcons name="flask-round-bottom" size={12} color={potion.accentColor} />
-                      <Text style={[styles.brewBadgeText, { color: potion.accentColor }]}>Interactive Brew!</Text>
-                    </View>
-                  )}
                   <View style={[styles.effectBadge, { backgroundColor: potion.accentColor + '22' }]}>
                     <MaterialCommunityIcons name="star-four-points" size={12} color={potion.accentColor} />
                     <Text style={[styles.effectText, { color: potion.accentColor }]} numberOfLines={2}>
@@ -397,11 +387,7 @@ export default function PotionsScreen() {
                   <Text style={[styles.potionName, { color: colors.deepPurple }]}>{potion.name}</Text>
                   <View style={styles.expandRow}>
                     <Text style={[styles.expandLabel, { color: colors.textMuted }]}>
-                      {isExpanded
-                        ? 'Tap to collapse'
-                        : isBrewing
-                          ? 'Tap to start brewing!'
-                          : `${potion.ingredients.length} ingredients`}
+                      {isExpanded ? 'Tap to collapse' : 'Tap to start brewing!'}
                     </Text>
                     <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
                   </View>
@@ -409,27 +395,7 @@ export default function PotionsScreen() {
               </View>
 
               {/* ── Expanded content ── */}
-              {isExpanded && (
-                isBrewing
-                  ? <BrewingCard potion={potion} />
-                  : (
-                    <View style={[styles.recipeBody, { borderTopColor: colors.border }]}>
-                      <Text style={[styles.recipeSection, { color: colors.deepPurple }]}>Ingredients</Text>
-                      {potion.ingredients.map((ing, i) => (
-                        <View key={i} style={styles.ingredientRow}>
-                          <View style={[styles.ingredientDot, { backgroundColor: potion.accentColor }]} />
-                          <Text style={[styles.ingredientText, { color: colors.textDark }]}>{ing}</Text>
-                        </View>
-                      ))}
-                      <Text style={[styles.recipeSection, { color: colors.deepPurple, marginTop: 14 }]}>Instructions</Text>
-                      <Text style={[styles.instructionsText, { color: colors.textDark }]}>{potion.instructions}</Text>
-                      <View style={[styles.magicFooter, { backgroundColor: potion.cardColor }]}>
-                        <MaterialCommunityIcons name="shimmer" size={16} color={potion.accentColor} />
-                        <Text style={[styles.magicFooterText, { color: potion.accentColor }]}>Always brew with a grown-up's help!</Text>
-                      </View>
-                    </View>
-                  )
-              )}
+              {isExpanded && <BrewingCard potion={potion} />}
             </Pressable>
           );
         })}
