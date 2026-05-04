@@ -1,6 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -45,26 +44,16 @@ const BRUSHES = [3, 6, 12, 20];
 
 type DrawMode = 'brush' | 'fill';
 
-/* ─── Load image as a base64 data URL ────────────────────────────────────── */
-async function loadAsBase64(module: number): Promise<string> {
+/* ─── Resolve image URI (file:// on native, remote URI on web) ───────────── */
+async function loadImageUri(module: number): Promise<string> {
   const asset = Asset.fromModule(module);
   await asset.downloadAsync();
-
-  if (Platform.OS === 'web') {
-    const res = await fetch(asset.uri);
-    const blob = await res.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+  // On native return the local file:// path so the WebView can load it
+  // directly — avoids base64-encoding 1.5 MB+ images into the HTML string.
+  if (Platform.OS !== 'web') {
+    return asset.localUri!;
   }
-
-  const b64 = await FileSystem.readAsStringAsync(asset.localUri!, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  return `data:image/png;base64,${b64}`;
+  return asset.uri;
 }
 
 /* ─── Build WebView HTML ──────────────────────────────────────────────────── */
@@ -234,17 +223,17 @@ export default function ColoringScreen() {
   const [brushIdx, setBrushIdx] = useState(1);
   const [mode,     setMode]     = useState<DrawMode>('fill');
 
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
-  const [loading,      setLoading]      = useState(true);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [loading,  setLoading]  = useState(true);
 
   const webViewRef = useRef<WebView>(null);
 
   /* ── Load image for current page ── */
   useEffect(() => {
     setLoading(true);
-    setImageDataUrl(null);
-    loadAsBase64(PAGES[pageIdx].src)
-      .then((url) => { setImageDataUrl(url); setLoading(false); })
+    setImageUri(null);
+    loadImageUri(PAGES[pageIdx].src)
+      .then((uri) => { setImageUri(uri); setLoading(false); })
       .catch(() => setLoading(false));
   }, [pageIdx]);
 
@@ -414,21 +403,23 @@ export default function ColoringScreen() {
 
       {/* ── Canvas ── */}
       <View style={[styles.canvasWrap, { width: canvasSize, height: canvasSize, borderColor: colors.border }]}>
-        {loading || !imageDataUrl ? (
+        {loading || !imageUri ? (
           <View style={styles.loader}>
             <ActivityIndicator size="large" color={colors.midPurple} />
             <Text style={[styles.loaderTxt, { color: colors.textMuted }]}>Loading page…</Text>
           </View>
         ) : (
           <WebView
-            key={`${pageIdx}-${imageDataUrl.slice(0, 20)}`}
+            key={`${pageIdx}-${imageUri.slice(-20)}`}
             ref={webViewRef}
-            source={{ html: buildHtml(imageDataUrl, selColor, mode, BRUSHES[brushIdx]) }}
+            source={{ html: buildHtml(imageUri, selColor, mode, BRUSHES[brushIdx]), baseUrl: 'file:///' }}
             style={styles.webView}
             scrollEnabled={false}
             bounces={false}
             onMessage={onMessage}
             allowFileAccess
+            allowUniversalAccessFromFileURLs
+            allowFileAccessFromFileURLs
             mixedContentMode="always"
             originWhitelist={['*']}
           />
