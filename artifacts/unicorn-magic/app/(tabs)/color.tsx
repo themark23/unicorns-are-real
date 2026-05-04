@@ -24,12 +24,12 @@ const PAGES = [
   { src: require('../../assets/coloring_1.png'),  label: 'Rainbow Unicorn' },
   { src: require('../../assets/coloring_2.png'),  label: 'Starry Night' },
   { src: require('../../assets/coloring_3.png'),  label: 'Castle Dream' },
-  { src: require('../../assets/coloring_4.png'),  label: 'Mountain Magic' },
-  { src: require('../../assets/coloring_5.png'),  label: 'Enchanted Forest' },
-  { src: require('../../assets/coloring_6.png'),  label: 'Butterfly Meadow' },
-  { src: require('../../assets/coloring_7.png'),  label: 'Beach Gallop' },
-  { src: require('../../assets/coloring_8.png'),  label: 'Rainbow Bridge' },
-  { src: require('../../assets/coloring_9.png'),  label: 'Moonlit Rest' },
+  { src: require('../../assets/coloring_4.png'),  label: 'Enchanted Forest' },
+  { src: require('../../assets/coloring_5.png'),  label: 'Mountain Magic' },
+  { src: require('../../assets/coloring_6.png'),  label: 'Beach Gallop' },
+  { src: require('../../assets/coloring_7.png'),  label: 'Rainbow Bridge' },
+  { src: require('../../assets/coloring_8.png'),  label: 'Butterfly Meadow' },
+  { src: require('../../assets/coloring_9.png'),  label: 'Waterfall Magic' },
   { src: require('../../assets/coloring_10.png'), label: 'Rainbow Hearts' },
 ];
 
