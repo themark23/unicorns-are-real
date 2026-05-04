@@ -28,7 +28,13 @@ export default function PotionsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
+    <View style={[styles.container, { paddingTop: topPad }]}>
+      <LinearGradient
+        colors={['#FFD6EC', '#EDD6FF', '#D6EEFF', '#D6FFE8']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 + bottomPad }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.deepPurple }]}>Magic Potions</Text>

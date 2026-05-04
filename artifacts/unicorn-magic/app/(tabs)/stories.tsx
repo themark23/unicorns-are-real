@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Speech from 'expo-speech';
 import React, { useState } from 'react';
 import {
@@ -58,7 +59,13 @@ export default function StoriesScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
+    <View style={[styles.container, { paddingTop: topPad }]}>
+      <LinearGradient
+        colors={['#FFD6EC', '#EDD6FF', '#D6EEFF', '#D6FFE8']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.deepPurple }]}>Unicorn Stories</Text>
