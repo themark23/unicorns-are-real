@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -18,7 +19,8 @@ import {
 import { useUnicorn } from '@/context/UnicornContext';
 import { useColors } from '@/hooks/useColors';
 
-const UNICORN_IMG = require('../../assets/unicorn.png');
+// Transparent line-art — gradient glows through the unicorn body
+const LINES_IMG = require('../../assets/unicorn_lines.png');
 
 // ─── Accessory types ─────────────────────────────────────────────────────────
 // 'cutie-mark' → flat stamp rendered directly on the unicorn (no bubble)
@@ -333,10 +335,18 @@ export default function DressScreen() {
         {/* ── Unicorn canvas ─────────────────────────── */}
         <View
           onLayout={(e) => setUnicornLayout(e.nativeEvent.layout)}
-          style={[styles.unicornArea, { backgroundColor: '#ffffff', borderColor: colors.border }]}
+          style={[styles.unicornArea, { borderColor: colors.border }]}
         >
+          {/* Pastel Lisa Frank gradient — glows through the transparent line art */}
+          <LinearGradient
+            colors={['#FFD6EC', '#EDD6FF', '#D6EEFF', '#D6FFE8']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
+          />
+          {/* Transparent unicorn line art — gradient shows through body */}
           <Image
-            source={UNICORN_IMG}
+            source={LINES_IMG}
             style={{ width: imgWidth, height: imgHeight }}
             resizeMode="cover"
           />
