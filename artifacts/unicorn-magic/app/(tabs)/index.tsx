@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -290,14 +290,6 @@ export default function DressScreen() {
   const imgWidth  = screenWidth - 34;
   const imgHeight = imgWidth * (1402 / 1122);
 
-  // ── Load saved design on mount ─────────────────────
-  useEffect(() => {
-    AsyncStorage.getItem(SAVE_KEY).then((json) => {
-      if (json) {
-        try { setPlacedAccessories(JSON.parse(json)); } catch (_) {}
-      }
-    });
-  }, []);
 
   const showToast = useCallback(() => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
