@@ -36,3 +36,33 @@ id = "e1RLIqgrZF4ZAwS1PeBcu"
 uri = "file://artifacts/unicorn-magic/assets/images/potion-dream.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "MCL4dxFj1OEFuW4LGRxPR"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-invisible.png"
+type = "image"
+title = "invisible potion cyan sparkles"
+
+[[generated]]
+id = "YQGW3lnw1C6Zm0xyIaoLO"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-giggle.png"
+type = "image"
+title = "giggle potion orange bubbles"
+
+[[generated]]
+id = "bOthjJnRWwtZ13VKNSLkc"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-friendship.png"
+type = "image"
+title = "friendship potion green hearts"
+
+[[generated]]
+id = "IUMAlGwcR6yy7iSSzWAS8"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-bravery.png"
+type = "image"
+title = "bravery potion red gold"
+
+[[generated]]
+id = "5JfYtQSWPXebpymtxTznT"
+uri = "file://artifacts/unicorn-magic/assets/images/potion-sparkle.png"
+type = "image"
+title = "unicorn sparkle potion pink rainbow"

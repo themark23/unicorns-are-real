@@ -23,15 +23,6 @@ const AnimatedRect   = Animated.createAnimatedComponent(Rect   as any);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle as any);
 
 
-// Unique themed icons for potions that have no photo image
-const POTION_PLACEHOLDER_ICONS: Record<string, string> = {
-  p6:  'eye-off',            // Invisible Potion
-  p7:  'emoticon-happy',     // Giggle Potion
-  p8:  'heart-multiple',     // Friendship Potion
-  p9:  'shield',             // Bravery Potion
-  p10: 'shimmer',            // Unicorn Sparkle Potion
-};
-
 // Burst particle colours + geometry
 const PARTICLE_COLORS = ['#FFD700', '#FF69B4', '#87CEEB', '#FF8C00', '#98FB98', '#DDA0DD', '#F0E68C', '#FF69B4'];
 const BURST_ANGLES    = Array.from({ length: 8 }, (_, i) => (i / 8) * Math.PI * 2);
@@ -383,11 +374,7 @@ export default function PotionsScreen() {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <MaterialCommunityIcons
-                      name={(POTION_PLACEHOLDER_ICONS[potion.id] ?? 'flask') as any}
-                      size={52}
-                      color={potion.accentColor}
-                    />
+                    <MaterialCommunityIcons name="flask" size={52} color={potion.accentColor} />
                   </LinearGradient>
                 )}
                 <View style={styles.cardInfo}>

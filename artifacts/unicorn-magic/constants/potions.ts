@@ -113,7 +113,7 @@ export const MAGIC_POTIONS: MagicPotion[] = [
     ],
     instructions:
       "Fill your cup with crystal-clear ice cubes. Pour in the lemon-lime soda very slowly. Add white grape juice and coconut water. Drop in the clear vanilla extract. Sprinkle silver glitter on top and watch it shimmer like pure magic! The secret: invisible things can still be incredibly beautiful.",
-    image: undefined,
+    image: require('../assets/images/potion-invisible.png'),
     cardColor: '#f0f8ff',
     accentColor: '#a5f3fc',
   },
@@ -131,7 +131,7 @@ export const MAGIC_POTIONS: MagicPotion[] = [
     ],
     instructions:
       "Mix orange juice, mango nectar, and pineapple juice together while making your silliest face. Drop in the gummy worms and watch them wiggle around. RIGHT before drinking, drop in the Pop Rocks and listen to the giggles begin! Use your most ridiculous straw for maximum giggle power!",
-    image: undefined,
+    image: require('../assets/images/potion-giggle.png'),
     cardColor: '#fff5f0',
     accentColor: '#fda07a',
   },
@@ -149,7 +149,7 @@ export const MAGIC_POTIONS: MagicPotion[] = [
     ],
     instructions:
       "Mix apple and grape juices together while thinking warm thoughts about your best friends. Add honey and lime juice. Put in fresh mint leaves and gently press them to release their friendly fragrance. Pour into two glasses to share — because a Friendship Potion only truly works when you drink it with a friend!",
-    image: undefined,
+    image: require('../assets/images/potion-friendship.png'),
     cardColor: '#f0fff4',
     accentColor: '#86efac',
   },
@@ -167,7 +167,7 @@ export const MAGIC_POTIONS: MagicPotion[] = [
     ],
     instructions:
       "Pour the cherry juice into your bravest cup. Add pomegranate juice and honey, stirring directly toward your fears to face them head on! Sprinkle in cinnamon and stir 5 times saying 'I am brave!' out loud each time. Add sparkling water for extra courage bubbles and top with red stars. You've got this!",
-    image: undefined,
+    image: require('../assets/images/potion-bravery.png'),
     cardColor: '#fff0f0',
     accentColor: '#fb7185',
   },
@@ -185,7 +185,7 @@ export const MAGIC_POTIONS: MagicPotion[] = [
     ],
     instructions:
       "Blend the pink lemonade with raspberry syrup until perfectly rosy pink. Stir in the coconut cream in a swirling spiral motion, just like a unicorn horn spinning! Pour into your most magical cup. Sprinkle rainbow sprinkles and gold glitter on top until it sparkles. Drink through your spiral straw and feel your inner unicorn completely awaken!",
-    image: undefined,
+    image: require('../assets/images/potion-sparkle.png'),
     cardColor: '#fef0ff',
     accentColor: '#ff9de2',
   },
