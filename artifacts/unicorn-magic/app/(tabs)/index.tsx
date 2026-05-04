@@ -52,6 +52,11 @@ const ACCESSORIES: AccessoryItem[] = [
   { id: 'snowflake',  label: 'Ice',       iconName: 'snowflake',          iconSet: 'MaterialCommunityIcons', color: '#67e8f9', bgColor: '#ecfeff', accType: 'cutie-mark' },
   { id: 'rainbow',    label: 'Rainbow',   iconName: 'color-palette',      iconSet: 'Ionicons',               color: '#c084fc', bgColor: '#f5f0ff', accType: 'cutie-mark' },
   { id: 'bolt',       label: 'Bolt',      iconName: 'flash',              iconSet: 'Ionicons',               color: '#fbbf24', bgColor: '#fffbeb', accType: 'cutie-mark' },
+  { id: 'paw',        label: 'Paw',       iconName: 'paw',                iconSet: 'MaterialCommunityIcons', color: '#fb923c', bgColor: '#fff7ed', accType: 'cutie-mark' },
+  { id: 'cloud',      label: 'Cloud',     iconName: 'cloud',              iconSet: 'Ionicons',               color: '#93c5fd', bgColor: '#eff6ff', accType: 'cutie-mark' },
+  { id: 'flame',      label: 'Flame',     iconName: 'flame',              iconSet: 'Ionicons',               color: '#f97316', bgColor: '#fff7ed', accType: 'cutie-mark' },
+  { id: 'horseshoe',  label: 'Lucky',     iconName: 'horseshoe',          iconSet: 'MaterialCommunityIcons', color: '#ffd700', bgColor: '#fffbdd', accType: 'cutie-mark' },
+  { id: 'bee',        label: 'Bee',       iconName: 'bee',                iconSet: 'MaterialCommunityIcons', color: '#fbbf24', bgColor: '#fffbeb', accType: 'cutie-mark' },
   // ── Wearable accessories ─────────────────────────────────────────────────
   { id: 'crown',      label: 'Crown',     iconName: 'crown',              iconSet: 'MaterialCommunityIcons', color: '#ffd700', bgColor: '#fffbdd', accType: 'accessory' },
   { id: 'tiara',      label: 'Tiara',     iconName: 'crown-outline',      iconSet: 'MaterialCommunityIcons', color: '#ff9de2', bgColor: '#fff0f8', accType: 'accessory' },
@@ -63,6 +68,11 @@ const ACCESSORIES: AccessoryItem[] = [
   { id: 'balloon',    label: 'Balloon',   iconName: 'balloon',            iconSet: 'MaterialCommunityIcons', color: '#f472b6', bgColor: '#fdf2f8', accType: 'accessory' },
   { id: 'feather',    label: 'Wings',     iconName: 'feather',            iconSet: 'MaterialCommunityIcons', color: '#a78bfa', bgColor: '#f5f0ff', accType: 'accessory' },
   { id: 'party',      label: 'Party',     iconName: 'party-popper',       iconSet: 'MaterialCommunityIcons', color: '#fb923c', bgColor: '#fff7ed', accType: 'accessory' },
+  { id: 'sunglasses', label: 'Sunnies',   iconName: 'sunglasses',         iconSet: 'MaterialCommunityIcons', color: '#fb7185', bgColor: '#fff0f2', accType: 'accessory' },
+  { id: 'medal',      label: 'Medal',     iconName: 'medal',              iconSet: 'MaterialCommunityIcons', color: '#ffd700', bgColor: '#fffbdd', accType: 'accessory' },
+  { id: 'headphones', label: 'Headphones',iconName: 'headset',            iconSet: 'Ionicons',               color: '#a78bfa', bgColor: '#f5f0ff', accType: 'accessory' },
+  { id: 'lollipop',   label: 'Candy',     iconName: 'candy',              iconSet: 'MaterialCommunityIcons', color: '#ff9de2', bgColor: '#fff0f8', accType: 'accessory' },
+  { id: 'trophy',     label: 'Trophy',    iconName: 'trophy',             iconSet: 'MaterialCommunityIcons', color: '#ffd700', bgColor: '#fffbdd', accType: 'accessory' },
 ];
 
 // Container size is the same for both types (determines touch target + positioning)
