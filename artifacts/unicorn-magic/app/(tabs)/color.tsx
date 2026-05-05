@@ -56,7 +56,10 @@ async function loadAsBase64(module: number): Promise<string> {
 }
 
 /* ─── Build WebView HTML ──────────────────────────────────────────────────── */
-function buildHtml(dataUrl: string, color: string, mode: DrawMode, brushSize: number, vpWidth: number): string {
+/* buildHtml only depends on the image data + viewport width.
+   Color / mode / brushSize are injected via updateSettings() so changing
+   them never causes a WebView reload that would wipe the painted canvas. */
+function buildHtml(dataUrl: string, vpWidth: number): string {
   return /* html */`<!DOCTYPE html>
 <html><head>
 <meta name="viewport" content="width=${vpWidth},initial-scale=1,maximum-scale=1,user-scalable=no">
@@ -73,9 +76,10 @@ var ctx=canvas.getContext('2d');
 var SZ=800;
 canvas.width=SZ;canvas.height=SZ;
 
-var color='${color}';
-var mode='${mode}';
-var brushSize=${brushSize};
+/* defaults — overwritten immediately by updateSettings() injected onLoad */
+var color='#FF69B4';
+var mode='fill';
+var brushSize=6;
 var painting=false;
 var img=new Image();
 
@@ -89,15 +93,14 @@ img.src='${dataUrl}';
 function hexToRgb(h){
   return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
 }
-/* offsetX/offsetY are relative to the canvas element itself — no rect
-   subtraction needed, immune to viewport-width vs WebView-width mismatch. */
-function canvasPos(e){
-  var ox=e.offsetX,oy=e.offsetY;
-  if(ox===undefined||ox===null){
-    var r=canvas.getBoundingClientRect();
-    ox=(e.clientX-r.left);oy=(e.clientY-r.top);
-  }
-  return[ox*(SZ/canvas.offsetWidth),oy*(SZ/canvas.offsetHeight)];
+
+/* Touch-based coordinate mapping — most reliable on iOS WKWebView.
+   Uses touches[0].clientX/Y relative to canvas bounding rect (CSS px). */
+function canvasPos(touch){
+  var r=canvas.getBoundingClientRect();
+  var cx=(touch.clientX-r.left)*(SZ/r.width);
+  var cy=(touch.clientY-r.top)*(SZ/r.height);
+  return[cx,cy];
 }
 
 /* ── scanline flood fill ── */
@@ -112,17 +115,15 @@ function floodFill(sx,sy){
   var fc=hexToRgb(color),fr=fc[0],fg=fc[1],fb=fc[2];
   if(sr===fr&&sg===fg&&sb===fb)return;
 
-  /* Euclidean tolerance — more forgiving of grayscale anti-aliasing while
-     still stopping firmly at dark lines (TOL²=2500 ≈ 50 per channel max). */
-  var TOL2=2500;
+  /* Per-channel tolerance tuned for grayscale anti-aliasing:
+     stops at lines darker than ~180/255. */
+  var TOL=60;
   function match(i){
-    var dr=d[i]-sr,dg=d[i+1]-sg,db=d[i+2]-sb;
-    return dr*dr+dg*dg+db*db<=TOL2;
+    return Math.abs(d[i]-sr)<=TOL&&Math.abs(d[i+1]-sg)<=TOL&&Math.abs(d[i+2]-sb)<=TOL;
   }
   function paint(i){d[i]=fr;d[i+1]=fg;d[i+2]=fb;d[i+3]=255;}
 
   var vis=new Uint8Array(w*h);
-  /* Scanline fill: push seed span then scan above/below */
   var stack=[];
   function pushSpan(y,xl,xr,dy){stack.push(y,xl,xr,dy);}
   pushSpan(sy,sx,sx,1);
@@ -133,15 +134,12 @@ function floodFill(sx,sy){
     var ny=y+dy;
     if(ny<0||ny>=h)continue;
     var x=xl;
-    /* extend left */
     while(x>0&&!vis[ny*w+x-1]&&match((ny*w+x-1)*4))x--;
     var x1=x;
-    /* scan right across this row */
     while(x<=xr+1&&x<w){
       var inside=(x<=xr)&&!vis[ny*w+x]&&match((ny*w+x)*4);
       if(inside){
         if(!vis[ny*w+x]){vis[ny*w+x]=1;paint((ny*w+x)*4);}
-        /* extend further right */
         while(x+1<w&&!vis[ny*w+x+1]&&match((ny*w+x+1)*4)){
           x++;vis[ny*w+x]=1;paint((ny*w+x)*4);
         }
@@ -153,7 +151,7 @@ function floodFill(sx,sy){
       x++;
     }
   }
-  /* also fill original row xl..xr */
+  /* fill seed row */
   var sx2=sx;
   while(sx2>=0&&match((sy*w+sx2)*4)){
     if(!vis[sy*w+sx2]){vis[sy*w+sx2]=1;paint((sy*w+sx2)*4);}
@@ -164,14 +162,15 @@ function floodFill(sx,sy){
     if(!vis[sy*w+sx2]){vis[sy*w+sx2]=1;paint((sy*w+sx2)*4);}
     sx2++;
   }
-
   ctx.putImageData(id,0,0);
 }
 
-/* ── pointer events ── */
-canvas.addEventListener('pointerdown',function(e){
+/* ── touch events (iOS WKWebView — most reliable coordinate source) ── */
+canvas.addEventListener('touchstart',function(e){
   e.preventDefault();
-  var p=canvasPos(e);
+  var t=e.touches[0];
+  if(!t)return;
+  var p=canvasPos(t);
   if(mode==='fill'){
     floodFill(p[0],p[1]);
     if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('haptic');
@@ -187,23 +186,25 @@ canvas.addEventListener('pointerdown',function(e){
   }
 },{passive:false});
 
-canvas.addEventListener('pointermove',function(e){
+canvas.addEventListener('touchmove',function(e){
   e.preventDefault();
   if(!painting||mode!=='brush')return;
-  var p=canvasPos(e);
+  var t=e.touches[0];
+  if(!t)return;
+  var p=canvasPos(t);
   ctx.lineTo(p[0],p[1]);
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(p[0],p[1]);
 },{passive:false});
 
-canvas.addEventListener('pointerup',function(e){
+canvas.addEventListener('touchend',function(e){
   e.preventDefault();
   painting=false;
   ctx.beginPath();
 },{passive:false});
 
-canvas.addEventListener('pointercancel',function(e){
+canvas.addEventListener('touchcancel',function(e){
   painting=false;ctx.beginPath();
 },{passive:false});
 
@@ -422,10 +423,15 @@ export default function ColoringScreen() {
           <WebView
             key={`${pageIdx}-${imageDataUrl.slice(0, 30)}`}
             ref={webViewRef}
-            source={{ html: buildHtml(imageDataUrl, selColor, mode, BRUSHES[brushIdx], canvasSize) }}
+            source={{ html: buildHtml(imageDataUrl, canvasSize) }}
             style={styles.webView}
             scrollEnabled={false}
             bounces={false}
+            onLoad={() => {
+              webViewRef.current?.injectJavaScript(
+                `updateSettings('${selColor}','${mode}',${BRUSHES[brushIdx]});true;`
+              );
+            }}
             onMessage={onMessage}
             allowFileAccess
             mixedContentMode="always"
