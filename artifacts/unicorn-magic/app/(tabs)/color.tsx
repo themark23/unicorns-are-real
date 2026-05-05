@@ -83,6 +83,15 @@ var brushSize=6;
 var painting=false;
 var img=new Image();
 
+/* ── undo history (up to 10 snapshots) ── */
+var hist=[];
+var MAX_HIST=10;
+function pushHistory(){
+  hist.push(ctx.getImageData(0,0,SZ,SZ));
+  if(hist.length>MAX_HIST)hist.shift();
+  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:1');
+}
+
 img.onload=function(){
   ctx.globalAlpha=1;
   ctx.drawImage(img,0,0,SZ,SZ);
@@ -174,6 +183,7 @@ canvas.addEventListener('touchstart',function(e){
   e.preventDefault();
   var t=e.touches[0];
   if(!t)return;
+  pushHistory();
   var p=canvasPos(t);
   if(mode==='fill'){
     floodFill(p[0],p[1]);
@@ -214,10 +224,17 @@ canvas.addEventListener('touchcancel',function(e){
 
 /* ── commands from RN ── */
 function updateSettings(c,m,s){color=c;mode=m;brushSize=s;}
+function undoCanvas(){
+  if(!hist.length)return;
+  ctx.putImageData(hist.pop(),0,0);
+  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:'+(hist.length>0?'1':'0'));
+}
 function clearCanvas(){
+  hist=[];
   ctx.globalAlpha=1;
   ctx.clearRect(0,0,SZ,SZ);
   ctx.drawImage(img,0,0,SZ,SZ);
+  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:0');
 }
 </script>
 </body></html>`;
@@ -238,6 +255,7 @@ export default function ColoringScreen() {
 
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [loading,      setLoading]      = useState(true);
+  const [canUndo,      setCanUndo]      = useState(false);
 
   const webViewRef = useRef<WebView>(null);
 
@@ -246,6 +264,7 @@ export default function ColoringScreen() {
     let cancelled = false;
     setLoading(true);
     setImageDataUrl(null);
+    setCanUndo(false);
     loadAsBase64(PAGES[pageIdx].src)
       .then((url) => { if (!cancelled) { setImageDataUrl(url); setLoading(false); } })
       .catch(() => { if (!cancelled) setLoading(false); });
@@ -273,9 +292,16 @@ export default function ColoringScreen() {
     }
   };
 
+  /* ── Undo ── */
+  const handleUndo = () => {
+    webViewRef.current?.injectJavaScript('undoCanvas();true;');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   /* ── Clear ── */
   const handleClear = () => {
     webViewRef.current?.injectJavaScript('clearCanvas();true;');
+    setCanUndo(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
@@ -291,8 +317,13 @@ export default function ColoringScreen() {
 
   /* ── Message from WebView ── */
   const onMessage = useCallback((event: { nativeEvent: { data: string } }) => {
-    if (event.nativeEvent.data === 'haptic') {
+    const msg = event.nativeEvent.data;
+    if (msg === 'haptic') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else if (msg === 'canUndo:1') {
+      setCanUndo(true);
+    } else if (msg === 'canUndo:0') {
+      setCanUndo(false);
     }
   }, []);
 
@@ -310,6 +341,17 @@ export default function ColoringScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.deepPurple }]}>Colouring</Text>
         <View style={styles.headerBtns}>
+          <Pressable
+            onPress={handleUndo}
+            disabled={!canUndo}
+            style={({ pressed }) => [
+              styles.hdrBtn,
+              { borderColor: colors.border, opacity: !canUndo ? 0.35 : pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Ionicons name="arrow-undo" size={15} color={colors.textMuted} />
+            <Text style={[styles.hdrBtnTxt, { color: colors.textMuted }]}>Undo</Text>
+          </Pressable>
           <Pressable
             onPress={handleClear}
             style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
