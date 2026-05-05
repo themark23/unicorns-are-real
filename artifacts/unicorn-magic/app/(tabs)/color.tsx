@@ -114,6 +114,8 @@ function floodFill(sx,sy){
   var sr=d[si],sg=d[si+1],sb=d[si+2];
   var fc=hexToRgb(color),fr=fc[0],fg=fc[1],fb=fc[2];
   if(sr===fr&&sg===fg&&sb===fb)return;
+  /* Protect outline: don't fill dark pixels (the black line art) */
+  if(sr<100&&sg<100&&sb<100)return;
 
   /* Per-channel tolerance tuned for grayscale anti-aliasing:
      stops at lines darker than ~180/255. */
