@@ -114,14 +114,16 @@ function floodFill(sx,sy){
   var sr=d[si],sg=d[si+1],sb=d[si+2];
   var fc=hexToRgb(color),fr=fc[0],fg=fc[1],fb=fc[2];
   if(sr===fr&&sg===fg&&sb===fb)return;
-  /* Protect outline: don't fill dark pixels (the black line art) */
-  if(sr<100&&sg<100&&sb<100)return;
+  /* Protect outline: don't start a fill on a very dark pixel (line art).
+     Threshold on max-channel so dark-colored fills can still be re-colored. */
+  if(Math.max(sr,sg,sb)<80)return;
 
-  /* Per-channel tolerance tuned for grayscale anti-aliasing:
-     stops at lines darker than ~180/255. */
-  var TOL=60;
+  /* Absolute-brightness matching: fill any connected pixel that is not dark.
+     This prevents anti-aliased gray pixels inside a region from acting as
+     false interior barriers (which caused rainbow bands to fill only partly).
+     The dark outlines (max channel < 80) act as the true flood-fill walls. */
   function match(i){
-    return Math.abs(d[i]-sr)<=TOL&&Math.abs(d[i+1]-sg)<=TOL&&Math.abs(d[i+2]-sb)<=TOL;
+    return Math.max(d[i],d[i+1],d[i+2])>=80;
   }
   function paint(i){d[i]=fr;d[i+1]=fg;d[i+2]=fb;d[i+3]=255;}
 
