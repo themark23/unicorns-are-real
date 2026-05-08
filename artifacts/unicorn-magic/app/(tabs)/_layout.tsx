@@ -44,9 +44,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="facts"
         options={{
-          title: 'Facts',
+          title: 'Read',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="star-outline" size={size} color={color} />
+            <Ionicons name="book-outline" size={size} color={color} />
           ),
         }}
       />
@@ -60,20 +60,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="stories"
-        options={{
-          title: 'Stories',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="potions"
         options={{
           title: 'Potions',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="flask-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="stories"
+        options={{
+          title: 'Games',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="game-controller-outline" size={size} color={color} />
           ),
         }}
       />
