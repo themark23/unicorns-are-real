@@ -483,9 +483,9 @@ const styles = StyleSheet.create({
   /* Bottle area */
   bottleArea: {
     alignItems: 'center',
-    height: BOTTLE_AREA_H,
     justifyContent: 'flex-start',
     paddingTop: 6,
+    paddingBottom: 10,
   },
 
   brewProgress: {
