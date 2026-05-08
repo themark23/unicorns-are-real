@@ -18,20 +18,23 @@ import { Circle, ClipPath, Defs, Path, Rect, Svg } from 'react-native-svg';
 import { MAGIC_POTIONS, MagicPotion } from '@/constants/potions';
 import { useColors } from '@/hooks/useColors';
 
-// Allow Animated values as SVG props
 const AnimatedRect   = Animated.createAnimatedComponent(Rect   as any);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle as any);
 
+/* ── helpers ─────────────────────────────────────────────────── */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
-// Burst particle colours + geometry
-const PARTICLE_COLORS = ['#FFD700', '#FF69B4', '#87CEEB', '#FF8C00', '#98FB98', '#DDA0DD', '#F0E68C', '#FF69B4'];
+const PARTICLE_COLORS = ['#FFD700','#FF69B4','#87CEEB','#FF8C00','#98FB98','#DDA0DD','#F0E68C','#FF69B4'];
 const BURST_ANGLES    = Array.from({ length: 8 }, (_, i) => (i / 8) * Math.PI * 2);
 const BURST_RADIUS    = 88;
+const BOTTLE_PATH     = 'M 34,22 L 34,46 Q 12,58 12,78 L 12,140 Q 12,158 50,158 Q 88,158 88,140 L 88,78 Q 88,58 66,46 L 66,22 Z';
 
-// Bottle SVG path (shared between fill clip and outline)
-const BOTTLE_PATH = 'M 34,22 L 34,46 Q 12,58 12,78 L 12,140 Q 12,158 50,158 Q 88,158 88,140 L 88,78 Q 88,58 66,46 L 66,22 Z';
-
-// ── BrewingCard ──────────────────────────────────────────────────────────────
+/* ── BrewingCard ──────────────────────────────────────────────── */
 function BrewingCard({ potion }: { potion: MagicPotion }) {
   const colors = useColors();
 
@@ -45,24 +48,20 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
   const total      = potion.ingredients.length;
   const isComplete = brewed.size === total;
 
-  // 3 bubbles rising at different speeds + x positions
   const bubbleAnims = useRef([
     new Animated.Value(0.0),
     new Animated.Value(0.4),
     new Animated.Value(0.72),
   ]).current;
-  // 4 sparkles that blink at fixed positions in the liquid
   const sparkleAnims = useRef([0, 0, 0, 0].map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
-    // Rising bubble loops — each at a different speed
     const DURATIONS = [2400, 3100, 2750];
     bubbleAnims.forEach((anim, i) => {
       Animated.loop(
         Animated.timing(anim, { toValue: 1, duration: DURATIONS[i], easing: Easing.linear, useNativeDriver: false })
       ).start();
     });
-    // Blinking sparkle loops — staggered delays
     sparkleAnims.forEach((anim, i) => {
       Animated.loop(
         Animated.sequence([
@@ -75,10 +74,22 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
     });
   }, []);
 
-  // Bottle fill: liquid rect top edge animated from 158 (empty) → 28 (full)
+  /* Fill Y: liquid rises from 158 (empty) → 28 (full) */
   const fillY  = fillAnim.interpolate({ inputRange: [0, 1], outputRange: [158, 28] });
-  // Bottle shake: rotates slightly on each ingredient tap
   const rotate = shakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-9deg', '0deg', '9deg'] });
+
+  /* Fill COLOR: each ingredient step shifts the liquid toward the final accent */
+  const colorInputRange  = Array.from({ length: total + 1 }, (_, i) => i / total);
+  const colorOutputRange = [
+    hexToRgba(potion.ingredientColors[0], 0.0),       // invisible when empty
+    ...potion.ingredientColors.map((c, i) =>
+      hexToRgba(c, 0.72 + (i / (total - 1)) * 0.2)   // ramps from 0.72 → 0.92 opacity
+    ),
+  ];
+  const fillColor = fillAnim.interpolate({
+    inputRange:  colorInputRange,
+    outputRange: colorOutputRange,
+  });
 
   const handleIngredientTap = (index: number) => {
     if (brewed.has(index)) return;
@@ -87,15 +98,13 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
     next.add(index);
     setBrewed(next);
 
-    // Animate fill level (spring for a satisfying bubble effect)
     Animated.spring(fillAnim, {
-      toValue: next.size / total,
+      toValue:   next.size / total,
       useNativeDriver: false,
       bounciness: 12,
       speed: 7,
     }).start();
 
-    // Shake the bottle
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue: 1,   duration: 60, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue: -1,  duration: 60, useNativeDriver: true }),
@@ -105,13 +114,11 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Trigger burst when all ingredients are added
     if (next.size === total) {
       setTimeout(() => {
         setShowComplete(true);
         Animated.timing(burstAnim, {
-          toValue: 1,
-          duration: 750,
+          toValue: 1, duration: 750,
           useNativeDriver: true,
           easing: Easing.out(Easing.cubic),
         }).start();
@@ -123,10 +130,10 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
   return (
     <View style={[styles.brewBody, { borderTopColor: colors.border }]}>
 
-      {/* ── Bottle + burst ─────────────────────────────── */}
+      {/* ── Bottle + burst ──────────────────────────────────── */}
       <View style={styles.bottleZone}>
 
-        {/* Burst particles — expand from bottle centre on completion */}
+        {/* Burst particles */}
         {showComplete && BURST_ANGLES.map((angle, i) => {
           const tx = burstAnim.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * BURST_RADIUS] });
           const ty = burstAnim.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * BURST_RADIUS] });
@@ -136,16 +143,12 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
             <Animated.View
               key={i}
               pointerEvents="none"
-              style={[
-                styles.particle,
-                { backgroundColor: PARTICLE_COLORS[i] },
-                { opacity: op, transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }] },
-              ]}
+              style={[styles.particle, { backgroundColor: PARTICLE_COLORS[i] },
+                { opacity: op, transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }] }]}
             />
           );
         })}
 
-        {/* Extra star burst particles (offset angles) */}
         {showComplete && BURST_ANGLES.map((angle, i) => {
           const offset = angle + Math.PI / 8;
           const tx = burstAnim.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(offset) * (BURST_RADIUS * 0.6)] });
@@ -153,14 +156,9 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
           const sc = burstAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 1.4, 0.7] });
           const op = burstAnim.interpolate({ inputRange: [0, 0.2, 0.9, 1], outputRange: [0, 1, 1, 0] });
           return (
-            <Animated.View
-              key={`s${i}`}
-              pointerEvents="none"
-              style={[
-                styles.starParticle,
-                { borderColor: PARTICLE_COLORS[(i + 3) % 8] },
-                { opacity: op, transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }, { rotate: '45deg' }] },
-              ]}
+            <Animated.View key={`s${i}`} pointerEvents="none"
+              style={[styles.starParticle, { borderColor: PARTICLE_COLORS[(i + 3) % 8] },
+                { opacity: op, transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }, { rotate: '45deg' }] }]}
             />
           );
         })}
@@ -174,94 +172,72 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
               </ClipPath>
             </Defs>
 
-            {/* Interior glass background */}
+            {/* Glass background */}
             <Path d={BOTTLE_PATH} fill="rgba(255,255,255,0.55)" />
 
-            {/* Liquid fill — animated y */}
+            {/* Animated liquid — color AND level both change */}
             <AnimatedRect
               x="0"
               y={fillY as any}
               width="100"
               height="165"
-              fill={potion.accentColor}
-              opacity="0.78"
+              fill={fillColor as any}
               clipPath={`url(#brew-${potion.id})`}
             />
 
-            {/* ── Bubbles: 3 circles rising at different speeds ── */}
+            {/* Bubbles: 3 rising circles */}
             {brewed.size > 0 && (() => {
-              const CX = [32, 54, 70];   // x lanes
-              const R  = [4,  5,  3.5]; // radii
+              const CX = [32, 54, 70];
+              const R  = [4,  5,  3.5];
               return bubbleAnims.map((anim, i) => {
                 const cy = anim.interpolate({ inputRange: [0, 1], outputRange: [152, 30] });
-                // gentle left-right wobble using same progress value
                 const cx = anim.interpolate({
                   inputRange: [0, 0.2, 0.5, 0.8, 1],
                   outputRange: [CX[i], CX[i] + 5, CX[i] - 4, CX[i] + 3, CX[i]],
                 });
-                // fade in at bottom, fade out at top
-                const op = anim.interpolate({
-                  inputRange: [0, 0.08, 0.85, 1],
-                  outputRange: [0, 0.75, 0.75, 0],
-                });
+                const op = anim.interpolate({ inputRange: [0, 0.08, 0.85, 1], outputRange: [0, 0.75, 0.75, 0] });
                 return (
-                  <AnimatedCircle
-                    key={`b${i}`}
-                    cx={cx as any}
-                    cy={cy as any}
-                    r={R[i]}
-                    fill="white"
-                    opacity={op as any}
+                  <AnimatedCircle key={`b${i}`}
+                    cx={cx as any} cy={cy as any} r={R[i]}
+                    fill="white" opacity={op as any}
                     clipPath={`url(#brew-${potion.id})`}
                   />
                 );
               });
             })()}
 
-            {/* ── Sparkles: 4 tiny circles that blink inside liquid ── */}
+            {/* Sparkles: blinking dots inside liquid */}
             {brewed.size > 0 && (() => {
               const POSITIONS = [[38, 120], [64, 100], [44, 138], [68, 115]];
               return sparkleAnims.map((anim, i) => (
-                <AnimatedCircle
-                  key={`sp${i}`}
-                  cx={POSITIONS[i][0]}
-                  cy={POSITIONS[i][1]}
-                  r="2.5"
-                  fill="white"
-                  opacity={anim as any}
+                <AnimatedCircle key={`sp${i}`}
+                  cx={POSITIONS[i][0]} cy={POSITIONS[i][1]}
+                  r="2.5" fill="white" opacity={anim as any}
                   clipPath={`url(#brew-${potion.id})`}
                 />
               ));
             })()}
 
-            {/* Glass shine highlight */}
-            <Path
-              d="M 23,82 Q 19,110 23,134"
-              stroke="rgba(255,255,255,0.65)"
-              strokeWidth="7"
-              strokeLinecap="round"
-              fill="none"
+            {/* Glass shine */}
+            <Path d="M 23,82 Q 19,110 23,134"
+              stroke="rgba(255,255,255,0.65)" strokeWidth="7"
+              strokeLinecap="round" fill="none"
             />
 
             {/* Bottle outline */}
-            <Path
-              d={BOTTLE_PATH}
-              stroke={potion.accentColor}
-              strokeWidth="3.5"
-              fill="none"
+            <Path d={BOTTLE_PATH}
+              stroke={potion.accentColor} strokeWidth="3.5" fill="none"
             />
 
-            {/* Neck top edge */}
+            {/* Neck line */}
             <Path d="M 34,22 L 66,22" stroke={potion.accentColor} strokeWidth="2" fill="none" />
 
-            {/* Cork body */}
+            {/* Cork */}
             <Rect x="29" y="2" width="42" height="22" rx="8" fill={potion.accentColor} />
-            {/* Cork shine */}
-            <Rect x="34" y="7" width="32" height="9" rx="4" fill="rgba(255,255,255,0.32)" />
+            <Rect x="34" y="7" width="32" height="9"  rx="4" fill="rgba(255,255,255,0.32)" />
           </Svg>
         </Animated.View>
 
-        {/* Progress / complete label */}
         <Text style={[
           styles.brewProgress,
           { color: isComplete ? potion.accentColor : colors.textMuted },
@@ -273,13 +249,15 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
         </Text>
       </View>
 
-      {/* ── Ingredient tap list ────────────────────────── */}
-      <Text style={[styles.recipeSection, { color: colors.deepPurple, marginBottom: 10 }]}>
+      {/* ── Ingredient tap list ──────────────────────────────── */}
+      <Text style={[styles.recipeSection, { color: colors.deepPurple, marginBottom: 12 }]}>
         Tap each ingredient to add it:
       </Text>
 
       {potion.ingredients.map((ing, i) => {
-        const done = brewed.has(i);
+        const done  = brewed.has(i);
+        const emoji = potion.ingredientEmojis[i] ?? '✨';
+        const stepColor = potion.ingredientColors[i] ?? potion.accentColor;
         return (
           <Pressable
             key={i}
@@ -288,32 +266,43 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
             style={({ pressed }) => [
               styles.ingChip,
               {
-                backgroundColor: done ? potion.accentColor + '22' : colors.card,
-                borderColor:     done ? potion.accentColor        : colors.border,
+                backgroundColor: done ? stepColor + '1A' : colors.card,
+                borderColor:     done ? stepColor        : colors.border,
                 opacity: pressed ? 0.75 : 1,
               },
             ]}
           >
-            <Ionicons
-              name={done ? 'checkmark-circle' : 'add-circle-outline'}
-              size={22}
-              color={done ? potion.accentColor : colors.textMuted}
-            />
+            {/* Emoji badge */}
+            <View style={[
+              styles.ingEmojiWrap,
+              { backgroundColor: done ? stepColor + '30' : colors.muted },
+            ]}>
+              <Text style={styles.ingEmoji}>{emoji}</Text>
+            </View>
+
+            {/* Ingredient text */}
             <Text style={[
               styles.ingChipText,
               {
-                color:              done ? potion.accentColor : colors.textDark,
-                fontWeight:         done ? '600' : '400',
+                color:              done ? stepColor : colors.textDark,
                 textDecorationLine: done ? 'line-through' : 'none',
+                fontWeight:         done ? '600' : '400',
               },
             ]}>
               {ing}
             </Text>
+
+            {/* Status icon */}
+            <Ionicons
+              name={done ? 'checkmark-circle' : 'add-circle-outline'}
+              size={24}
+              color={done ? stepColor : colors.textMuted}
+            />
           </Pressable>
         );
       })}
 
-      {/* Magic footer */}
+      {/* Footer */}
       <View style={[styles.magicFooter, { backgroundColor: potion.cardColor, marginTop: 14 }]}>
         <MaterialCommunityIcons name="shimmer" size={16} color={potion.accentColor} />
         <Text style={[styles.magicFooterText, { color: potion.accentColor }]}>
@@ -324,46 +313,46 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
   );
 }
 
-// ── PotionsScreen ────────────────────────────────────────────────────────────
+/* ── PotionsScreen ────────────────────────────────────────────── */
 export default function PotionsScreen() {
-  const colors = useColors();
+  const colors    = useColors();
   const [expandedId, setExpandedId] = useState<string | null>('p1');
-
   const topPad    = Platform.OS === 'web' ? 67 : 0;
   const bottomPad = Platform.OS === 'web' ? 34 : 0;
-
-  const handleToggle = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
       <LinearGradient
         colors={['#FFD6EC', '#EDD6FF', '#D6EEFF', '#D6FFE8']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 + bottomPad }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: 100 + bottomPad }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.deepPurple }]}>Magic Potions</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>{MAGIC_POTIONS.length} recipes to brew at home</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            {MAGIC_POTIONS.length} recipes to brew at home
+          </Text>
         </View>
 
         {MAGIC_POTIONS.map((potion) => {
           const isExpanded = expandedId === potion.id;
-
           return (
             <Pressable
               key={potion.id}
-              onPress={() => handleToggle(potion.id)}
+              onPress={() => {
+                setExpandedId((prev) => (prev === potion.id ? null : potion.id));
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
               style={({ pressed }) => [
                 styles.potionCard,
                 { borderColor: isExpanded ? potion.accentColor : colors.border, opacity: pressed ? 0.95 : 1 },
               ]}
             >
-              {/* ── Card top: image / gradient + info ── */}
+              {/* ── Card top ── */}
               <View style={styles.cardTop}>
                 {potion.image ? (
                   <Image source={potion.image} style={styles.potionImage} contentFit="cover" />
@@ -371,8 +360,7 @@ export default function PotionsScreen() {
                   <LinearGradient
                     colors={[potion.cardColor, potion.accentColor + '40']}
                     style={styles.potionImagePlaceholder}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   >
                     <MaterialCommunityIcons name="flask" size={52} color={potion.accentColor} />
                   </LinearGradient>
@@ -385,6 +373,19 @@ export default function PotionsScreen() {
                     </Text>
                   </View>
                   <Text style={[styles.potionName, { color: colors.deepPurple }]}>{potion.name}</Text>
+
+                  {/* Ingredient emoji preview row */}
+                  <View style={styles.emojiPreviewRow}>
+                    {potion.ingredientEmojis.slice(0, 5).map((em, i) => (
+                      <Text key={i} style={styles.emojiPreview}>{em}</Text>
+                    ))}
+                    {potion.ingredientEmojis.length > 5 && (
+                      <Text style={[styles.emojiPreviewMore, { color: colors.textMuted }]}>
+                        +{potion.ingredientEmojis.length - 5}
+                      </Text>
+                    )}
+                  </View>
+
                   <View style={styles.expandRow}>
                     <Text style={[styles.expandLabel, { color: colors.textMuted }]}>
                       {isExpanded ? 'Tap to collapse' : 'Tap to start brewing!'}
@@ -394,7 +395,6 @@ export default function PotionsScreen() {
                 </View>
               </View>
 
-              {/* ── Expanded content ── */}
               {isExpanded && <BrewingCard potion={potion} />}
             </Pressable>
           );
@@ -404,6 +404,7 @@ export default function PotionsScreen() {
   );
 }
 
+/* ── Styles ───────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll:    { paddingHorizontal: 16 },
@@ -416,70 +417,48 @@ const styles = StyleSheet.create({
     marginBottom: 14, overflow: 'hidden',
     backgroundColor: '#ffffff',
   },
-  cardTop:              { flexDirection: 'row', gap: 0 },
-  potionImage:          { width: 110, height: 120 },
-  potionImagePlaceholder: { width: 110, height: 120, alignItems: 'center', justifyContent: 'center' },
+  cardTop:              { flexDirection: 'row' },
+  potionImage:          { width: 110, height: 130 },
+  potionImagePlaceholder: { width: 110, height: 130, alignItems: 'center', justifyContent: 'center' },
   cardInfo:             { flex: 1, padding: 12, justifyContent: 'space-between' },
-  brewBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3,
-    borderWidth: 1, marginBottom: 6, alignSelf: 'flex-start',
-  },
-  brewBadgeText:  { fontSize: 10, fontWeight: '700', fontFamily: 'Inter_700Bold' },
   effectBadge:    { flexDirection: 'row', alignItems: 'flex-start', gap: 5, borderRadius: 8, padding: 6, marginBottom: 6 },
   effectText:     { fontSize: 11, fontWeight: '600', fontFamily: 'Inter_600SemiBold', flex: 1, lineHeight: 15 },
-  potionName:     { fontSize: 18, fontWeight: '700', fontFamily: 'Inter_700Bold', marginBottom: 6 },
+  potionName:     { fontSize: 17, fontWeight: '700', fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  emojiPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 6 },
+  emojiPreview:    { fontSize: 16 },
+  emojiPreviewMore: { fontSize: 11, fontWeight: '600', fontFamily: 'Inter_600SemiBold', marginLeft: 2 },
   expandRow:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
   expandLabel:    { fontSize: 12, fontFamily: 'Inter_400Regular' },
 
-  // Standard recipe body (non-brewing potions)
-  recipeBody:      { paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1 },
-  recipeSection:   { fontSize: 15, fontWeight: '700', fontFamily: 'Inter_700Bold', marginBottom: 8 },
-  ingredientRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  ingredientDot:   { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  ingredientText:  { fontSize: 14, fontFamily: 'Inter_400Regular', flex: 1 },
-  instructionsText:{ fontSize: 14, lineHeight: 22, fontFamily: 'Inter_400Regular' },
-  magicFooter:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, padding: 10, borderRadius: 12 },
+  /* BrewingCard */
+  brewBody: { paddingHorizontal: 16, paddingVertical: 18, borderTopWidth: 1 },
+  bottleZone: {
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 20, height: 220, position: 'relative',
+  },
+  particle:     { position: 'absolute', width: 14, height: 14, borderRadius: 7 },
+  starParticle: { position: 'absolute', width: 10, height: 10, borderWidth: 2, borderRadius: 2 },
+  brewProgress: {
+    marginTop: 10, fontSize: 14,
+    fontWeight: '600', fontFamily: 'Inter_600SemiBold', textAlign: 'center',
+  },
+  brewProgressComplete: { fontSize: 16, fontWeight: '700', fontFamily: 'Inter_700Bold' },
+
+  recipeSection: { fontSize: 15, fontWeight: '700', fontFamily: 'Inter_700Bold' },
+  magicFooter:   { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 12 },
   magicFooterText: { fontSize: 12, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
 
-  // ── BrewingCard ──────────────────────────────────────────────────────────
-  brewBody: {
-    paddingHorizontal: 16, paddingVertical: 18,
-    borderTopWidth: 1,
-  },
-  bottleZone: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    height: 220,
-    position: 'relative',
-  },
-  // Burst particles
-  particle: {
-    position: 'absolute',
-    width: 14, height: 14, borderRadius: 7,
-  },
-  starParticle: {
-    position: 'absolute',
-    width: 10, height: 10,
-    borderWidth: 2, borderRadius: 2,
-  },
-  brewProgress: {
-    marginTop: 10,
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Inter_600SemiBold',
-    textAlign: 'center',
-  },
-  brewProgressComplete: {
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Inter_700Bold',
-  },
-  // Ingredient tappable chips
+  /* Ingredient chips */
   ingChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 12, borderRadius: 14, borderWidth: 1.5, marginBottom: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 16, borderWidth: 1.5, marginBottom: 8,
   },
-  ingChipText: { fontSize: 14, fontFamily: 'Inter_400Regular', flex: 1 },
+  ingEmojiWrap: {
+    width: 48, height: 48, borderRadius: 24,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  ingEmoji:     { fontSize: 28 },
+  ingChipText:  { fontSize: 14, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 19 },
 });

@@ -3,6 +3,8 @@ export interface MagicPotion {
   name: string;
   effect: string;
   ingredients: string[];
+  ingredientEmojis: string[];
+  ingredientColors: string[]; // one color per ingredient; last = final accentColor
   instructions: string;
   image?: any;
   cardColor: string;
@@ -21,8 +23,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       'A pinch of pink sugar stars',
       '2 tablespoons of sparkling lemonade',
     ],
+    ingredientEmojis: ['🌹', '🍓', '🫙', '🌸', '🍋'],
+    ingredientColors: ['#FFD6EC', '#FFC0DE', '#FF9DCF', '#FF7EC0', '#FF9DE2'],
     instructions:
-      "Mix the rose water and strawberry juice gently in your favorite cup. Add the vanilla drops one by one while thinking of someone you love. Stir in the pink sugar stars clockwise three times. Top with sparkling lemonade and watch the magic bubble up!",
+      'Mix the rose water and strawberry juice gently in your favorite cup. Add the vanilla drops one by one while thinking of someone you love. Stir in the pink sugar stars clockwise three times. Top with sparkling lemonade and watch the magic bubble up!',
     image: require('../assets/images/potion-love.png'),
     cardColor: '#fff0f8',
     accentColor: '#ff9de2',
@@ -39,8 +43,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       '1/2 cup of coconut water',
       'Tiny blue sprinkles for magic',
     ],
+    ingredientEmojis: ['🫐', '🍯', '🍋', '🌿', '🥥', '💫'],
+    ingredientColors: ['#DEEEFF', '#C0D8FF', '#9DC2FE', '#7AACFE', '#5A97FD', '#93C5FD'],
     instructions:
-      "Muddle the mint leaves at the bottom of your cup. Pour in the blueberry juice and coconut water. Add honey and lemon juice, then stir quickly in a circular motion to build up speed energy. Top with blue sprinkles and drink it up fast — the faster you drink it, the faster you'll go!",
+      'Muddle the mint leaves at the bottom of your cup. Pour in the blueberry juice and coconut water. Add honey and lemon juice, then stir quickly in a circular motion to build up speed energy. Top with blue sprinkles and drink it up fast!',
     image: require('../assets/images/potion-speed.png'),
     cardColor: '#f0f4ff',
     accentColor: '#93c5fd',
@@ -57,8 +63,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       'Blue layer: 1 tbsp blueberry juice',
       'Purple layer: 1 tbsp grape juice',
     ],
+    ingredientEmojis: ['🍒', '🍑', '🍋', '🍏', '🫐', '🍇'],
+    ingredientColors: ['#FF8888', '#FFAE70', '#FFD660', '#7EDB80', '#88CAEE', '#B888E8'],
     instructions:
-      "Very carefully pour each color layer into a tall glass one at a time, starting with purple at the bottom and red at the very top. Do NOT stir — let the beautiful rainbow layers show off their colors! Make a wish before you take your first sip!",
+      'Very carefully pour each color layer into a tall glass one at a time, starting with purple at the bottom and red at the very top. Do NOT stir — let the beautiful rainbow layers show off their colors! Make a wish before you take your first sip!',
     image: require('../assets/images/potion-rainbow.png'),
     cardColor: '#fff8f0',
     accentColor: '#fda07a',
@@ -75,8 +83,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       '1/4 teaspoon of ginger (the little fire spice)',
       'Edible gold stars for topping',
     ],
+    ingredientEmojis: ['🍊', '🍯', '🌟', '🍋', '🫚', '⭐'],
+    ingredientColors: ['#FFF3C0', '#FFE890', '#FFD840', '#FFC820', '#FDB810', '#FDE68A'],
     instructions:
-      "Mix the orange juice, honey, turmeric, lemon, and ginger together while thinking of your happiest memory ever. Pour into your sunniest cup. Top with edible gold stars and stir clockwise three times. Best enjoyed in the morning when the sun is just waking up!",
+      'Mix the orange juice, honey, turmeric, lemon, and ginger together while thinking of your happiest memory ever. Pour into your sunniest cup. Top with edible gold stars and stir clockwise three times. Best enjoyed in the morning!',
     image: require('../assets/images/potion-sunshine.png'),
     cardColor: '#fffbf0',
     accentColor: '#fde68a',
@@ -93,8 +103,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       'A few drops of lavender syrup (food-grade only!)',
       'Purple sugar sprinkles to seal the magic',
     ],
+    ingredientEmojis: ['🥛', '🍯', '🌸', '🫙', '💜', '✨'],
+    ingredientColors: ['#F0E8FF', '#DEC8FF', '#C8A0FF', '#B478FF', '#9E50FF', '#C084FC'],
     instructions:
-      "Gently warm the milk with a grown-up's help. Stir in honey and vanilla until the magic begins to wake up. Add cinnamon and lavender syrup, swirling slowly like a dream. Sprinkle purple sugar on top. Drink it 30 minutes before bedtime and the most wonderful sweet dreams will follow!",
+      'Gently warm the milk with a grown-up\'s help. Stir in honey and vanilla until the magic begins to wake up. Add cinnamon and lavender syrup, swirling slowly like a dream. Sprinkle purple sugar on top. Drink 30 minutes before bedtime!',
     image: require('../assets/images/potion-dream.png'),
     cardColor: '#f5f0ff',
     accentColor: '#c084fc',
@@ -111,8 +123,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       '5 drops of clear vanilla extract',
       'Crystal-clear ice cubes',
     ],
+    ingredientEmojis: ['🥤', '🍇', '🥥', '✨', '⭐', '🧊'],
+    ingredientColors: ['#EEFFFE', '#D0FCFF', '#ADFAFF', '#88F6FF', '#68F0FF', '#A5F3FC'],
     instructions:
-      "Fill your cup with crystal-clear ice cubes. Pour in the lemon-lime soda very slowly. Add white grape juice and coconut water. Drop in the clear vanilla extract. Sprinkle silver glitter on top and watch it shimmer like pure magic! The secret: invisible things can still be incredibly beautiful.",
+      'Fill your cup with crystal-clear ice cubes. Pour in the lemon-lime soda very slowly. Add white grape juice and coconut water. Drop in the clear vanilla extract. Sprinkle silver glitter on top and watch it shimmer like pure magic!',
     image: require('../assets/images/potion-invisible.png'),
     cardColor: '#f0f8ff',
     accentColor: '#a5f3fc',
@@ -129,8 +143,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       '1 tablespoon of pineapple juice',
       'A really silly straw',
     ],
+    ingredientEmojis: ['🍊', '🥭', '🐛', '💥', '🍍', '🌀'],
+    ingredientColors: ['#FFF0D8', '#FFD8A0', '#FFC070', '#FFB060', '#FFA050', '#FDA07A'],
     instructions:
-      "Mix orange juice, mango nectar, and pineapple juice together while making your silliest face. Drop in the gummy worms and watch them wiggle around. RIGHT before drinking, drop in the Pop Rocks and listen to the giggles begin! Use your most ridiculous straw for maximum giggle power!",
+      'Mix orange juice, mango nectar, and pineapple juice together while making your silliest face. Drop in the gummy worms and watch them wiggle around. RIGHT before drinking, drop in the Pop Rocks and listen to the giggles begin!',
     image: require('../assets/images/potion-giggle.png'),
     cardColor: '#fff5f0',
     accentColor: '#fda07a',
@@ -147,8 +163,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       '1 tablespoon of lime juice',
       'Green sugar crystals and a heart straw',
     ],
+    ingredientEmojis: ['🍏', '🍇', '🍯', '🌿', '🍈', '💚'],
+    ingredientColors: ['#DAFFD8', '#B0F0B8', '#80E090', '#52D068', '#30C050', '#86EFAC'],
     instructions:
-      "Mix apple and grape juices together while thinking warm thoughts about your best friends. Add honey and lime juice. Put in fresh mint leaves and gently press them to release their friendly fragrance. Pour into two glasses to share — because a Friendship Potion only truly works when you drink it with a friend!",
+      'Mix apple and grape juices together while thinking warm thoughts about your best friends. Add honey and lime juice. Put in fresh mint leaves and gently press them. Pour into two glasses to share — a Friendship Potion only truly works when shared!',
     image: require('../assets/images/potion-friendship.png'),
     cardColor: '#f0fff4',
     accentColor: '#86efac',
@@ -165,8 +183,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       'Red star-shaped sprinkles',
       '1/4 cup of sparkling water for courage bubbles',
     ],
+    ingredientEmojis: ['🍒', '🍎', '🍯', '🫙', '⭐', '🫧'],
+    ingredientColors: ['#FFE0E8', '#FFC0CC', '#FF96A8', '#FF6C84', '#FF4268', '#FB7185'],
     instructions:
-      "Pour the cherry juice into your bravest cup. Add pomegranate juice and honey, stirring directly toward your fears to face them head on! Sprinkle in cinnamon and stir 5 times saying 'I am brave!' out loud each time. Add sparkling water for extra courage bubbles and top with red stars. You've got this!",
+      'Pour the cherry juice into your bravest cup. Add pomegranate juice and honey, stirring directly toward your fears! Sprinkle in cinnamon and stir 5 times saying "I am brave!" Add sparkling water for courage bubbles and top with red stars. You\'ve got this!',
     image: require('../assets/images/potion-bravery.png'),
     cardColor: '#fff0f0',
     accentColor: '#fb7185',
@@ -183,8 +203,10 @@ export const MAGIC_POTIONS: MagicPotion[] = [
       'Pink and gold edible glitter',
       'A spiral straw (just like a unicorn horn!)',
     ],
+    ingredientEmojis: ['🍋', '🍓', '🥥', '🌈', '✨', '🦄'],
+    ingredientColors: ['#FFEAF8', '#FFD0EE', '#FFB4E2', '#FF98D6', '#FF7EC8', '#FF9DE2'],
     instructions:
-      "Blend the pink lemonade with raspberry syrup until perfectly rosy pink. Stir in the coconut cream in a swirling spiral motion, just like a unicorn horn spinning! Pour into your most magical cup. Sprinkle rainbow sprinkles and gold glitter on top until it sparkles. Drink through your spiral straw and feel your inner unicorn completely awaken!",
+      'Blend the pink lemonade with raspberry syrup until perfectly rosy pink. Stir in the coconut cream in a swirling spiral motion, just like a unicorn horn spinning! Pour into your most magical cup. Sprinkle rainbow sprinkles and gold glitter on top until it sparkles!',
     image: require('../assets/images/potion-sparkle.png'),
     cardColor: '#fef0ff',
     accentColor: '#ff9de2',
