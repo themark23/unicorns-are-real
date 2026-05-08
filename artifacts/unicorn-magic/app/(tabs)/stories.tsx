@@ -382,44 +382,56 @@ function TicTacToeGame() {
       <View
         style={[
           styles.tttBoard,
-          { width: boardSize, height: boardSize, borderRadius: 20, borderColor: colors.border },
+          { width: boardSize, borderColor: '#CECBF6' },
         ]}
       >
-        {board.map((cell, idx) => {
-          const row = Math.floor(idx / 3);
-          const col = idx % 3;
-          const winning = isWinCell(idx);
-          return (
-            <Pressable
-              key={idx}
-              onPress={() => handleCellPress(idx)}
-              style={({ pressed }) => [
-                styles.tttCell,
-                {
-                  width: cellSize,
-                  height: cellSize,
-                  borderRightWidth: col < 2 ? 2.5 : 0,
-                  borderBottomWidth: row < 2 ? 2.5 : 0,
-                  borderColor: colors.border,
-                  backgroundColor: winning ? `${colors.midPurple}28` : 'transparent',
-                  opacity: pressed && !cell ? 0.6 : 1,
-                },
-              ]}
-            >
-              {cell && (
-                <Animated.Text
-                  style={{
-                    fontSize: cellSize * 0.52,
-                    lineHeight: cellSize * 0.6,
-                    transform: [{ scale: scaleAnims[idx] }],
-                  }}
+        {[0, 1, 2].map((row) => (
+          <View
+            key={row}
+            style={[
+              styles.tttRow,
+              row < 2 && { borderBottomWidth: 4, borderColor: '#534AB7' },
+            ]}
+          >
+            {[0, 1, 2].map((col) => {
+              const idx = row * 3 + col;
+              const cell = board[idx];
+              const winning = isWinCell(idx);
+              return (
+                <Pressable
+                  key={col}
+                  onPress={() => handleCellPress(idx)}
+                  style={({ pressed }) => [
+                    styles.tttCell,
+                    {
+                      width: cellSize,
+                      height: cellSize,
+                      borderRightWidth: col < 2 ? 4 : 0,
+                      borderColor: '#534AB7',
+                      backgroundColor: winning
+                        ? 'rgba(83,74,183,0.15)'
+                        : pressed && !cell
+                        ? 'rgba(83,74,183,0.06)'
+                        : 'transparent',
+                    },
+                  ]}
                 >
-                  {cell}
-                </Animated.Text>
-              )}
-            </Pressable>
-          );
-        })}
+                  {cell && (
+                    <Animated.Text
+                      style={{
+                        fontSize: cellSize * 0.52,
+                        lineHeight: cellSize * 0.58,
+                        transform: [{ scale: scaleAnims[idx] }],
+                      }}
+                    >
+                      {cell}
+                    </Animated.Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </View>
 
       {/* Buttons */}
@@ -588,11 +600,14 @@ const styles = StyleSheet.create({
   tttPlayerLabel: { fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
 
   tttBoard: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    borderWidth: 2.5,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 20,
+    borderWidth: 3,
+  },
+  tttRow: {
+    flexDirection: 'row',
   },
   tttCell: {
     alignItems: 'center',
