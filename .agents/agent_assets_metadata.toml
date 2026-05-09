@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "Z0GwDvCKqTpqh89FnDNW3"
@@ -66,3 +65,9 @@ id = "5JfYtQSWPXebpymtxTznT"
 uri = "file://artifacts/unicorn-magic/assets/images/potion-sparkle.png"
 type = "image"
 title = "unicorn sparkle potion pink rainbow"
+
+[[outputs]]
+id = "D2ZYogIjB6BjdWR7n6Bh-"
+uri = "file://unicorn-magic-voiceover-script.docx"
+type = "word_document"
+title = "Unicorn Magic — Voice-Over Script"
