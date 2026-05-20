@@ -50,7 +50,7 @@ async function loadAsBase64(module: number): Promise<string> {
   const asset = Asset.fromModule(module);
   await asset.downloadAsync();
   const b64 = await FileSystem.readAsStringAsync(asset.localUri!, {
-    encoding: FileSystem.EncodingType.Base64,
+    encoding: 'base64',
   });
   return `data:image/png;base64,${b64}`;
 }
