@@ -71,3 +71,9 @@ id = "D2ZYogIjB6BjdWR7n6Bh-"
 uri = "file://unicorn-magic-voiceover-script.docx"
 type = "word_document"
 title = "Unicorn Magic — Voice-Over Script"
+
+[[outputs]]
+id = "r-g_gSRJVyYFBTPjvNZnZ"
+uri = "file://screenshots/unicorn-magic-screenshots.zip"
+type = "unspecified"
+title = "Unicorn Magic — App Screenshots (5 JPGs)"
