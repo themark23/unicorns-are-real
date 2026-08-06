@@ -14,7 +14,7 @@ import {
 
 import { useColors } from '@/hooks/useColors';
 
-type GameMode = 'memory' | 'tictactoe';
+type GameMode = 'memory' | 'tictactoe' | 'spell';
 
 /* ═══════════════════════════════════════════════════════════════
    MEMORY MATCH
@@ -461,6 +461,237 @@ function TicTacToeGame() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   MAGIC SPELL
+═══════════════════════════════════════════════════════════════ */
+
+const SPELL_SYMBOLS = ['🌈', '⭐', '💎', '🌙', '🌸', '💜'];
+
+type SpellPhase = 'showing' | 'input' | 'won' | 'lost';
+
+function MagicSpellGame() {
+  const colors = useColors();
+  const { width: screenWidth } = useWindowDimensions();
+
+  const btnSize = Math.floor((Math.min(screenWidth, 360) - 48 - 12) / 3);
+
+  const [sequence, setSequence] = useState<number[]>([]);
+  const [playerSeq, setPlayerSeq] = useState<number[]>([]);
+  const [phase, setPhase] = useState<SpellPhase>('showing');
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [flashIdx, setFlashIdx] = useState<number | null>(null);
+  const [best, setBest] = useState(0);
+
+  const glowAnims = useRef(SPELL_SYMBOLS.map(() => new Animated.Value(0))).current;
+
+  // Start first round
+  useEffect(() => {
+    startNextRound([]);
+  }, []);
+
+  const flashButton = (symbolIdx: number, duration = 500): Promise<void> =>
+    new Promise((resolve) => {
+      setActiveIdx(symbolIdx);
+      Animated.sequence([
+        Animated.timing(glowAnims[symbolIdx], { toValue: 1, duration: duration * 0.35, useNativeDriver: false }),
+        Animated.timing(glowAnims[symbolIdx], { toValue: 0, duration: duration * 0.35, delay: duration * 0.15, useNativeDriver: false }),
+      ]).start(() => {
+        setActiveIdx(null);
+        resolve();
+      });
+    });
+
+  const startNextRound = async (prevSeq: number[]) => {
+    const next = [...prevSeq, Math.floor(Math.random() * SPELL_SYMBOLS.length)];
+    setSequence(next);
+    setPlayerSeq([]);
+    setPhase('showing');
+
+    await new Promise((r) => setTimeout(r, 700));
+
+    for (const idx of next) {
+      await flashButton(idx, 550);
+      await new Promise((r) => setTimeout(r, 180));
+    }
+
+    setPhase('input');
+  };
+
+  const handlePress = async (symbolIdx: number) => {
+    if (phase !== 'input') return;
+
+    setFlashIdx(symbolIdx);
+    await flashButton(symbolIdx, 300);
+    setFlashIdx(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const next = [...playerSeq, symbolIdx];
+    const step = next.length - 1;
+
+    if (next[step] !== sequence[step]) {
+      // Wrong!
+      setPhase('lost');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (next.length === sequence.length) {
+      // Completed round
+      const newBest = Math.max(best, sequence.length);
+      setBest(newBest);
+      setPhase('won');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      setPlayerSeq(next);
+    }
+  };
+
+  const restart = () => {
+    glowAnims.forEach((a) => a.setValue(0));
+    setSequence([]);
+    setPlayerSeq([]);
+    startNextRound([]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  const nextRound = () => {
+    glowAnims.forEach((a) => a.setValue(0));
+    setPlayerSeq([]);
+    startNextRound(sequence);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const statusText = () => {
+    if (phase === 'showing') return '✨ Watch the spell…';
+    if (phase === 'input') return `Tap the spell! (${playerSeq.length}/${sequence.length})`;
+    if (phase === 'won') return `🎉 You got it! Round ${sequence.length} complete!`;
+    return `💜 Almost! Try again`;
+  };
+
+  return (
+    <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 100 }}>
+      {/* Best score */}
+      <View style={spellStyles.bestRow}>
+        <Text style={[spellStyles.bestLabel, { color: colors.textMuted }]}>Best streak</Text>
+        <Text style={[spellStyles.bestVal, { color: colors.midPurple }]}>
+          {best} {best > 0 ? '⭐' : ''}
+        </Text>
+      </View>
+
+      {/* Status */}
+      <View style={spellStyles.statusBox}>
+        <Text style={[spellStyles.statusText, { color: colors.deepPurple }]}>{statusText()}</Text>
+      </View>
+
+      {/* Round pill */}
+      <View style={[spellStyles.roundPill, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[spellStyles.roundText, { color: colors.midPurple }]}>
+          Round {sequence.length}
+        </Text>
+      </View>
+
+      {/* Symbol grid — 3×2 */}
+      <View style={spellStyles.grid}>
+        {SPELL_SYMBOLS.map((sym, i) => {
+          const isActive = activeIdx === i;
+          const bgColor = glowAnims[i].interpolate({
+            inputRange: [0, 1],
+            outputRange: ['rgba(255,255,255,0.75)', 'rgba(83,74,183,0.85)'],
+          });
+          const scale = glowAnims[i].interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.12, 1] });
+          return (
+            <Pressable
+              key={i}
+              onPress={() => handlePress(i)}
+              disabled={phase !== 'input'}
+              style={{ margin: 6 }}
+            >
+              <Animated.View
+                style={[
+                  spellStyles.spellBtn,
+                  {
+                    width: btnSize,
+                    height: btnSize,
+                    borderRadius: btnSize * 0.22,
+                    backgroundColor: bgColor as any,
+                    borderColor: isActive ? colors.midPurple : colors.border,
+                    transform: [{ scale }],
+                  },
+                ]}
+              >
+                <Text style={{ fontSize: btnSize * 0.46, lineHeight: btnSize * 0.54 }}>{sym}</Text>
+              </Animated.View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Action buttons */}
+      {(phase === 'won' || phase === 'lost') && (
+        <View style={spellStyles.actionRow}>
+          {phase === 'won' && (
+            <Pressable
+              onPress={nextRound}
+              style={({ pressed }) => [
+                spellStyles.actionBtn,
+                { backgroundColor: colors.midPurple, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Text style={spellStyles.actionBtnText}>Next Round ✨</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={restart}
+            style={({ pressed }) => [
+              spellStyles.actionBtn,
+              {
+                backgroundColor: phase === 'lost' ? colors.midPurple : colors.card,
+                borderWidth: 2,
+                borderColor: colors.midPurple,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Text style={[spellStyles.actionBtnText, { color: phase === 'lost' ? '#fff' : colors.midPurple }]}>
+              {phase === 'lost' ? 'Try Again 💜' : 'Restart'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const spellStyles = StyleSheet.create({
+  bestRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  bestLabel: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  bestVal: { fontSize: 15, fontWeight: '700', fontFamily: 'Inter_700Bold' },
+  statusBox: { paddingHorizontal: 20, paddingVertical: 8, marginBottom: 8 },
+  statusText: { fontSize: 17, fontWeight: '600', fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
+  roundPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginBottom: 20,
+  },
+  roundText: { fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 },
+  spellBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    shadowColor: '#534AB7',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  actionRow: { flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  actionBtn: { paddingHorizontal: 28, paddingVertical: 14, borderRadius: 24 },
+  actionBtnText: { fontSize: 15, fontWeight: '700', color: '#fff', fontFamily: 'Inter_700Bold' },
+});
+
+/* ═══════════════════════════════════════════════════════════════
    GAMES SCREEN
 ═══════════════════════════════════════════════════════════════ */
 
@@ -507,11 +738,23 @@ export default function GamesScreen() {
               Tic Tac Toe
             </Text>
           </Pressable>
+          <Pressable
+            onPress={() => {
+              setActiveGame('spell');
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            style={[styles.segBtn, activeGame === 'spell' && { backgroundColor: colors.midPurple }]}
+          >
+            <Text style={{ fontSize: 14 }}>✨</Text>
+            <Text style={[styles.segBtnText, { color: activeGame === 'spell' ? '#fff' : colors.deepPurple }]}>
+              Magic Spell
+            </Text>
+          </Pressable>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
-        {activeGame === 'memory' ? <MemoryGame /> : <TicTacToeGame />}
+        {activeGame === 'memory' ? <MemoryGame /> : activeGame === 'tictactoe' ? <TicTacToeGame /> : <MagicSpellGame />}
       </ScrollView>
     </View>
   );
