@@ -13,6 +13,11 @@ import sceneForest from "@assets/scene-forest_1782164751361.jpg";
 import sceneSpace from "@assets/scene-space_1782164751363.jpg";
 import sceneGarden from "@assets/scene-garden_1782164751362.jpg";
 import sceneCastle from "@assets/scene-castle_1782164751360.jpg";
+import shotPickUnicorn from "@assets/alacorn-01-pick-unicorn.jpg";
+import shotPickWorld from "@assets/alacorn-02-pick-world.jpg";
+import shotCrystalCity from "@assets/alacorn-03-crystal-city.jpg";
+import shotOuterSpace from "@assets/alacorn-04-outer-space.jpg";
+import shotResults from "@assets/alacorn-05-results.jpg";
 
 const GOLD = "hsl(38, 90%, 72%)";
 
@@ -30,6 +35,59 @@ const worlds = [
   { name: "Unicorn Valley", img: sceneGarden, desc: "The garden park — gazebo, fountain and blossom trees." },
   { name: "Magical Forest", img: sceneForest, desc: "Glowing mushrooms, lily ponds and drifting fireflies." },
   { name: "Outer Space",    img: sceneSpace,  desc: "Ringed planets, nebulas and tumbling moon rocks." },
+];
+
+const screens = [
+  {
+    label: "Choose your flyer",
+    title: "Pick your alacorn",
+    description:
+      "All five friends from Unicorn Valley, now with wings. Celestia, Orion, Lumi, Comet and Twinkle each have their own horn, mane and sparkle — tap the one you want and go.",
+    image: shotPickUnicorn,
+    color: "rgba(240, 180, 41, 0.14)",
+    border: "rgba(240, 180, 41, 0.3)",
+    iconColor: "hsl(38, 88%, 72%)",
+  },
+  {
+    label: "Five worlds",
+    title: "Choose where to fly",
+    description:
+      "Rainbow Beach, Crystal City, Unicorn Valley, the Magical Forest and Outer Space — every world is unlocked from the very first tap. Your best crystal count is saved for each one.",
+    image: shotPickWorld,
+    color: "rgba(45, 212, 191, 0.12)",
+    border: "rgba(45, 212, 191, 0.28)",
+    iconColor: "hsl(177, 60%, 65%)",
+  },
+  {
+    label: "Crystal City",
+    title: "Weave between glowing towers",
+    description:
+      "Soar through a city of giant gemstone spires under a violet sky. Crystals drift in the open air between the towers, and a trail of glitter follows wherever you fly.",
+    image: shotCrystalCity,
+    color: "rgba(236, 72, 153, 0.13)",
+    border: "rgba(236, 72, 153, 0.28)",
+    iconColor: "hsl(330, 80%, 78%)",
+  },
+  {
+    label: "Outer Space",
+    title: "Fly among the stars",
+    description:
+      "Drift over moon dust beneath ringed planets, nebulas and a thousand twinkling stars. Little Twinkle is the smallest flyer of the family — and the easiest to steer.",
+    image: shotOuterSpace,
+    color: "rgba(139, 92, 246, 0.14)",
+    border: "rgba(139, 92, 246, 0.3)",
+    iconColor: "hsl(270, 75%, 80%)",
+  },
+  {
+    label: "Beat your best",
+    title: "Stars at the finish",
+    description:
+      "When the timer runs out you get your crystal count and up to three stars. Best scores are kept for every world, so there is always one more round worth flying.",
+    image: shotResults,
+    color: "rgba(240, 180, 41, 0.14)",
+    border: "rgba(240, 180, 41, 0.3)",
+    iconColor: "hsl(38, 88%, 72%)",
+  },
 ];
 
 const features = [
@@ -161,6 +219,81 @@ export default function AlacornAdventure() {
                 </p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Inside the game */}
+      <section className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-20"
+          >
+            <h2 className="text-4xl md:text-5xl font-serif font-bold mb-4">
+              <span style={{ color: "hsl(270, 20%, 90%)" }}>Inside the</span>{" "}
+              <span className="gradient-text">Game</span>
+            </h2>
+            <p className="text-base max-w-lg mx-auto" style={{ color: "hsl(265, 15%, 55%)" }}>
+              Every screen is built for small hands — big buttons, no reading
+              required, and never more than one tap from flying.
+            </p>
+          </motion.div>
+
+          <div className="flex flex-col gap-16">
+            {screens.map((screen, i) => {
+              const isEven = i % 2 === 0;
+              return (
+                <motion.div
+                  key={screen.title}
+                  initial={{ opacity: 0, y: 28 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.55, delay: 0.05 }}
+                  className={`grid md:grid-cols-2 gap-10 items-center ${!isEven ? "md:[&>*:first-child]:order-2" : ""}`}
+                  data-testid={`screen-alacorn-${i}`}
+                >
+                  {/* Text */}
+                  <div className={!isEven ? "md:order-1" : ""}>
+                    <div
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-4"
+                      style={{ background: screen.color, border: `1px solid ${screen.border}`, color: screen.iconColor }}
+                    >
+                      <Sparkles size={12} />
+                      <span>{screen.label}</span>
+                    </div>
+                    <h3 className="text-2xl font-serif font-semibold mb-3" style={{ color: "hsl(270, 20%, 90%)" }}>
+                      {screen.title}
+                    </h3>
+                    <p className="text-base leading-relaxed" style={{ color: "hsl(265, 15%, 60%)" }}>
+                      {screen.description}
+                    </p>
+                  </div>
+
+                  {/* Screenshot */}
+                  <div className={`flex ${isEven ? "md:justify-end" : "md:justify-start"} justify-center`}>
+                    <motion.div
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      transition={{ duration: 0.2 }}
+                      className="w-[190px] h-[400px] rounded-[38px] overflow-hidden"
+                      style={{
+                        border: `1.5px solid ${screen.border}`,
+                        boxShadow: `0 24px 60px ${screen.color}, 0 0 0 1px rgba(255,255,255,0.04)`,
+                      }}
+                    >
+                      <img
+                        src={screen.image}
+                        alt={`${screen.title} screen`}
+                        className="w-full h-full object-cover object-top"
+                      />
+                    </motion.div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
