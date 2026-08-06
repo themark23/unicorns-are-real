@@ -140,9 +140,9 @@ export default function UnicornValley() {
             </div>
 
             <h1 className="text-5xl md:text-6xl font-serif font-bold mb-4 leading-tight">
-              <span className="gradient-text">Where Every Drag</span>
+              <span className="gradient-text">Where New Adventures</span>
               <br />
-              <span style={{ color: "hsl(270, 20%, 90%)" }}>is a New Adventure</span>
+              <span style={{ color: "hsl(270, 20%, 90%)" }}>Are Around Every Corner</span>
             </h1>
 
             <p className="text-lg leading-relaxed mb-8" style={{ color: "hsl(265, 15%, 62%)" }}>
