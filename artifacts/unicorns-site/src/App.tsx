@@ -8,6 +8,7 @@ import UnicornMagic from "@/pages/UnicornMagic";
 import UnicornValley from "@/pages/UnicornValley";
 import AlacornAdventure from "@/pages/AlacornAdventure";
 import AlacornPrivacy from "@/pages/AlacornPrivacy";
+import UnicornValleyPrivacy from "@/pages/UnicornValleyPrivacy";
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/unicorn-magic" component={UnicornMagic} />
       <Route path="/unicorn-valley" component={UnicornValley} />
+      <Route path="/unicorn-valley/privacy" component={UnicornValleyPrivacy} />
       <Route path="/alacorn-adventure" component={AlacornAdventure} />
       <Route path="/alacorn-adventure/privacy" component={AlacornPrivacy} />
       <Route component={NotFound} />
