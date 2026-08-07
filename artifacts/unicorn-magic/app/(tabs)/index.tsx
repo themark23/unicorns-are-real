@@ -84,10 +84,28 @@ const ICON_HALF = ICON_SIZE / 2;
 const CUTIE_ICON_SIZE = 42;
 const WEAR_ICON_SIZE  = 54;
 
-// Sparkle overlay config
-const SVG_W     = 295;
-const SVG_H     = 250;
-const SVG_PAD_V = 16;
+/* ─── Magic palettes ─────────────────────────────────────────────────────────
+   The line art is transparent, so whatever sits behind it becomes the
+   unicorn's colours. Letting the child pick that gradient is what makes this
+   screen a "dress up" screen rather than a static picture. */
+interface Palette {
+  id: string;
+  label: string;
+  colors: [string, string, string, string];
+}
+
+const PALETTES: Palette[] = [
+  { id: 'rainbow', label: 'Rainbow', colors: ['#FFD6EC', '#EDD6FF', '#D6EEFF', '#D6FFE8'] },
+  { id: 'sunset',  label: 'Sunset',  colors: ['#FFE0C2', '#FFC2B4', '#FFAECF', '#E5B8FF'] },
+  { id: 'ocean',   label: 'Ocean',   colors: ['#CDF3FF', '#B5E3FF', '#BCCCFF', '#D8C6FF'] },
+  { id: 'candy',   label: 'Candy',   colors: ['#FFD9EC', '#FFC2DE', '#FFB3E6', '#F0C2FF'] },
+  { id: 'meadow',  label: 'Meadow',  colors: ['#E4FFD6', '#C8F7D4', '#BEEBF0', '#DFF0C0'] },
+  { id: 'galaxy',  label: 'Galaxy',  colors: ['#DCD3FF', '#C3B6FF', '#B9CBFF', '#EBC6FF'] },
+  { id: 'sunny',   label: 'Sunny',   colors: ['#FFF4C2', '#FFE7A8', '#FFDCC2', '#FFF0D6'] },
+];
+
+const PALETTE_KEY = '@unicorn_palette';
+
 
 interface SparkleSpec {
   pctX: number; pctY: number;
@@ -110,7 +128,7 @@ const SPARKLE_SPECS: SparkleSpec[] = [
 
 // ─── AnimatedSparkle ─────────────────────────────────────────────────────────
 
-function AnimatedSparkle({ pctX, pctY, size, color, delay, speed, svgLeft, svgTop }: SparkleSpec & { svgLeft: number; svgTop: number }) {
+function AnimatedSparkle({ pctX, pctY, size, color, delay, speed, areaW, areaH }: SparkleSpec & { areaW: number; areaH: number }) {
   const scaleAnim   = useRef(new Animated.Value(0)).current;
   const rotateAnim  = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -148,8 +166,8 @@ function AnimatedSparkle({ pctX, pctY, size, color, delay, speed, svgLeft, svgTo
       pointerEvents="none"
       style={{
         position: 'absolute',
-        left: svgLeft + pctX * SVG_W - size / 2,
-        top:  svgTop  + pctY * SVG_H - size / 2,
+        left: pctX * areaW - size / 2,
+        top:  pctY * areaH - size / 2,
         opacity: opacityAnim,
         transform: [{ scale: scaleAnim }, { rotate }],
       }}
@@ -159,7 +177,7 @@ function AnimatedSparkle({ pctX, pctY, size, color, delay, speed, svgLeft, svgTo
   );
 }
 
-function SparkleOverlay({ svgLeft, svgTop }: { svgLeft: number; svgTop: number }) {
+function SparkleOverlay({ areaW, areaH }: { areaW: number; areaH: number }) {
   const containerOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(containerOpacity, { toValue: 1, duration: 320, useNativeDriver: true }).start();
@@ -167,7 +185,7 @@ function SparkleOverlay({ svgLeft, svgTop }: { svgLeft: number; svgTop: number }
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: containerOpacity }]}>
       {SPARKLE_SPECS.map((sp, i) => (
-        <AnimatedSparkle key={i} {...sp} svgLeft={svgLeft} svgTop={svgTop} />
+        <AnimatedSparkle key={i} {...sp} areaW={areaW} areaH={areaH} />
       ))}
     </Animated.View>
   );
@@ -279,6 +297,7 @@ export default function DressScreen() {
   const { sparkles, toggleSparkles } = useUnicorn();
 
   const [placedAccessories, setPlacedAccessories] = useState<Record<string, { x: number; y: number }>>({});
+  const [paletteId, setPaletteId]     = useState<string>(PALETTES[0].id);
   const [isDragging, setIsDragging]   = useState(false);
   const [unicornLayout, setUnicornLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -289,6 +308,32 @@ export default function DressScreen() {
   const bottomPad = Platform.OS === 'web' ? 34 : 0;
   const imgWidth  = screenWidth - 34;
   const imgHeight = imgWidth * (1402 / 1122);
+
+  /* Restore the last saved design. Without this the Save button writes a key
+     that nothing ever reads, and the "Design Saved!" toast is a lie. */
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(SAVE_KEY)
+      .then((raw) => {
+        if (cancelled || !raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') setPlacedAccessories(parsed);
+      })
+      .catch(() => {});
+    AsyncStorage.getItem(PALETTE_KEY)
+      .then((id) => {
+        if (cancelled || !id) return;
+        if (PALETTES.some((p) => p.id === id)) setPaletteId(id);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const choosePalette = useCallback((id: string) => {
+    setPaletteId(id);
+    AsyncStorage.setItem(PALETTE_KEY, id).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
 
   const showToast = useCallback(() => {
@@ -314,8 +359,8 @@ export default function DressScreen() {
         delete next[acc.id];
         return next;
       }
-      const w = unicornLayout.width  || SVG_W;
-      const h = unicornLayout.height || SVG_H + SVG_PAD_V * 2;
+      const w = unicornLayout.width  || imgWidth;
+      const h = unicornLayout.height || imgHeight;
       // Default placement: cutie marks land on the flank, accessories near the head
       const cx = acc.accType === 'cutie-mark'
         ? w * 0.42 + (Math.random() - 0.5) * 60  // mid-body area
@@ -333,9 +378,8 @@ export default function DressScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
 
-  const svgLeft = unicornLayout.width > 0 ? (unicornLayout.width - SVG_W) / 2 : 0;
-  const svgTop  = SVG_PAD_V;
   const hasAccessories = Object.keys(placedAccessories).length > 0;
+  const activePalette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0];
 
   // Split accessories for the tray section labels
   const cutieMarks  = ACCESSORIES.filter((a) => a.accType === 'cutie-mark');
@@ -368,9 +412,9 @@ export default function DressScreen() {
           onLayout={(e) => setUnicornLayout(e.nativeEvent.layout)}
           style={[styles.unicornArea, { borderColor: colors.border }]}
         >
-          {/* Pastel Lisa Frank gradient — glows through the transparent line art */}
+          {/* The chosen palette glows through the transparent line art */}
           <LinearGradient
-            colors={['#FFD6EC', '#EDD6FF', '#D6EEFF', '#D6FFE8']}
+            colors={activePalette.colors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
@@ -383,7 +427,7 @@ export default function DressScreen() {
           />
 
           {sparkles && unicornLayout.width > 0 && (
-            <SparkleOverlay svgLeft={svgLeft} svgTop={svgTop} />
+            <SparkleOverlay areaW={unicornLayout.width} areaH={unicornLayout.height} />
           )}
 
           {Object.entries(placedAccessories).map(([id, pos]) => {
@@ -411,6 +455,46 @@ export default function DressScreen() {
           </Text>
         )}
 
+        {/* ── Magic palette picker ───────────────────── */}
+        <View style={styles.traySection}>
+          <View style={styles.trayHeader}>
+            <MaterialCommunityIcons name="palette" size={14} color={colors.midPurple} />
+            <Text style={[styles.trayLabel, { color: colors.midPurple }]}>Magic Colors</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled={!isDragging}>
+            <View style={styles.chipRow}>
+              {PALETTES.map((p) => {
+                const active = p.id === paletteId;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => choosePalette(p.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${p.label} colors`}
+                    accessibilityState={{ selected: active }}
+                    style={({ pressed }) => [
+                      styles.paletteChip,
+                      {
+                        borderColor: active ? colors.midPurple : colors.border,
+                        borderWidth: active ? 2.5 : 1.5,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={p.colors}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.paletteSwatch}
+                    />
+                    <Text style={[styles.chipLabel, { color: colors.textDark }]}>{p.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+
         {/* ── Cutie marks tray ───────────────────────── */}
         <View style={styles.traySection}>
           <View style={styles.trayHeader}>
@@ -425,6 +509,8 @@ export default function DressScreen() {
                   <Pressable
                     key={acc.id}
                     onPress={() => handleAccessoryTap(acc)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${acc.label}${isPlaced ? ', placed, tap to remove' : ', tap to add'}`}
                     style={({ pressed }) => [
                       styles.chip,
                       styles.cutieChip,
@@ -462,6 +548,8 @@ export default function DressScreen() {
                   <Pressable
                     key={acc.id}
                     onPress={() => handleAccessoryTap(acc)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${acc.label}${isPlaced ? ', placed, tap to remove' : ', tap to add'}`}
                     style={({ pressed }) => [
                       styles.chip,
                       styles.wearChip,
@@ -489,6 +577,8 @@ export default function DressScreen() {
         <View style={styles.actionRow}>
           <Pressable
             onPress={handleSave}
+            accessibilityRole="button"
+            accessibilityLabel="Save your unicorn design"
             style={({ pressed }) => [styles.saveBtn, { backgroundColor: colors.midPurple, opacity: pressed ? 0.8 : 1 }]}
           >
             <MaterialCommunityIcons name="content-save-outline" size={17} color="#fff" />
@@ -497,6 +587,8 @@ export default function DressScreen() {
 
           <Pressable
             onPress={handleReset}
+            accessibilityRole="button"
+            accessibilityLabel="Remove all accessories and start over"
             style={({ pressed }) => [styles.resetBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
           >
             <Ionicons name="refresh" size={15} color={colors.textMuted} />
@@ -563,6 +655,15 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   chipLabel: { fontSize: 10, marginTop: 4, fontWeight: '500', fontFamily: 'Inter_500Medium' },
+
+  paletteChip: {
+    width: 76, paddingVertical: 9,
+    borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  paletteSwatch: {
+    width: 46, height: 30, borderRadius: 9,
+  },
   chipBadge: {
     position: 'absolute', top: -5, right: -5,
     width: 17, height: 17, borderRadius: 9,
