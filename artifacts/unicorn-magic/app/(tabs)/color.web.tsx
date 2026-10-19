@@ -1,5 +1,5 @@
 /**
- * Web-platform implementation of the Colouring tab.
+ * Web-platform implementation of the Coloring tab.
  * Uses an HTML5 <canvas> element accessed via DOM ref (React Native Web renders
  * Views as real <div>s, so DOM APIs are available on .current).
  */
@@ -10,7 +10,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -109,6 +108,10 @@ interface CanvasProps {
   clearTick: number;
 }
 
+// The <canvas> is created inside ColorCanvas but Save lives on the parent
+// screen, so the live element is tracked here.
+let liveCanvas: HTMLCanvasElement | null = null;
+
 function ColorCanvas({ imageUri, color, mode, brushSize, clearTick }: CanvasProps) {
   const containerRef = useRef<any>(null);
   const canvasRef    = useRef<HTMLCanvasElement | null>(null);
@@ -135,6 +138,7 @@ function ColorCanvas({ imageUri, color, mode, brushSize, clearTick }: CanvasProp
     canvas.height = CANVAS_SZ;
     canvas.style.cssText = 'width:100%;height:100%;touch-action:none;cursor:crosshair;display:block;';
     canvasRef.current = canvas;
+    liveCanvas = canvas;
 
     const ctx = canvas.getContext('2d')!;
     ctxRef.current = ctx;
@@ -204,6 +208,7 @@ function ColorCanvas({ imageUri, color, mode, brushSize, clearTick }: CanvasProp
       canvas.removeEventListener('pointercancel', onUp);
       if (container.contains(canvas)) container.removeChild(canvas);
       canvasRef.current = null;
+      liveCanvas = null;
       ctxRef.current    = null;
     };
   }, [imageUri]);
@@ -259,10 +264,24 @@ export default function ColoringScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
+  /* On web the canvas is a real <canvas>, so Save can actually save: hand the
+     artwork back as a PNG download instead of telling a child to take a
+     screenshot (which is what this used to do). */
   const handleSave = useCallback(() => {
-    Alert.alert('💾 Save Your Art', 'Take a screenshot to save your coloring!', [{ text: 'Got it! 🌟' }]);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, []);
+    const canvas = liveCanvas;
+    if (!canvas) return;
+    try {
+      const link = document.createElement('a');
+      link.download = `unicorn-magic-${PAGES[pageIdx].label.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      /* saving is best-effort; never interrupt a child mid-drawing */
+    }
+  }, [pageIdx]);
 
   const page      = PAGES[pageIdx];
   const brushSize = BRUSHES[brushIdx];
@@ -273,13 +292,13 @@ export default function ColoringScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.deepPurple }]}>Colouring</Text>
+        <Text style={[styles.title, { color: colors.deepPurple }]}>Coloring</Text>
         <View style={styles.headerBtns}>
-          <Pressable onPress={handleClear} style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}>
+          <Pressable onPress={handleClear} accessibilityRole="button" accessibilityLabel="Clear this page and start over" style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}>
             <Ionicons name="refresh" size={15} color={colors.textMuted} />
             <Text style={[styles.hdrBtnTxt, { color: colors.textMuted }]}>Clear</Text>
           </Pressable>
-          <Pressable onPress={handleSave} style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.midPurple, opacity: pressed ? 0.6 : 1 }]}>
+          <Pressable onPress={handleSave} accessibilityRole="button" accessibilityLabel="Save your artwork" style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.midPurple, opacity: pressed ? 0.6 : 1 }]}>
             <MaterialCommunityIcons name="content-save" size={15} color={colors.midPurple} />
             <Text style={[styles.hdrBtnTxt, { color: colors.midPurple }]}>Save</Text>
           </Pressable>
@@ -351,7 +370,7 @@ export default function ColoringScreen() {
 
       {/* Hint */}
       <Text style={[styles.hint, { color: colors.textMuted }]}>
-        {mode === 'fill' ? 'Tap any region to fill it with your colour ✨' : 'Draw with your finger ✨'}
+        {mode === 'fill' ? 'Tap any region to fill it with your color ✨' : 'Draw with your finger ✨'}
       </Text>
     </View>
   );
