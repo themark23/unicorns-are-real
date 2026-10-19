@@ -350,11 +350,22 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
         })}
       </View>
 
+      {/* ── How to brew it ── */}
+      <View style={styles.instructionsBlock}>
+        <Text style={[styles.ingredientListTitle, { color: colors.deepPurple }]}>
+          How to brew it:
+        </Text>
+        <Text style={[styles.instructionsText, { color: colors.textDark }]}>
+          {potion.instructions}
+        </Text>
+      </View>
+
       {/* Footer */}
       <View style={[styles.magicFooter, { backgroundColor: potion.cardColor, marginTop: 14 }]}>
         <MaterialCommunityIcons name="shimmer" size={16} color={potion.accentColor} />
         <Text style={[styles.magicFooterText, { color: potion.accentColor }]}>
-          Always brew with a grown-up's help!
+          Always brew with a grown-up&apos;s help — and check the ingredients
+          together for anything you&apos;re allergic to!
         </Text>
       </View>
     </View>
@@ -547,6 +558,12 @@ const styles = StyleSheet.create({
   ingRowEmoji: { fontSize: 18, width: 26, textAlign: 'center' },
   ingRowText:  { fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 18 },
 
-  magicFooter:     { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 12 },
-  magicFooterText: { fontSize: 12, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
+  instructionsBlock: { marginTop: 14 },
+  instructionsText: {
+    fontSize: 13, lineHeight: 21,
+    fontFamily: 'Inter_400Regular',
+  },
+
+  magicFooter:     { flexDirection: 'row', alignItems: 'flex-start', gap: 6, padding: 10, borderRadius: 12 },
+  magicFooterText: { fontSize: 12, fontWeight: '600', fontFamily: 'Inter_600SemiBold', flex: 1, lineHeight: 17 },
 });

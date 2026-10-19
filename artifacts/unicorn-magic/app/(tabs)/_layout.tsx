@@ -33,6 +33,15 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Dress',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="auto-fix" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="color"
         options={{
           title: 'Color',
@@ -65,15 +74,6 @@ export default function TabLayout() {
           title: 'Games',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="game-controller-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Dress',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="auto-fix" size={size} color={color} />
           ),
         }}
       />
