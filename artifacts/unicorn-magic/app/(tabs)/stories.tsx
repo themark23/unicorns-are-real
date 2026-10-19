@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -88,6 +89,8 @@ function MemoryCard({
       <Pressable
         onPress={onPress}
         disabled={card.isFlipped || card.isMatched}
+        accessibilityRole="button"
+        accessibilityLabel={card.isMatched ? 'Matched card' : card.isFlipped ? `Card showing ${card.symbol}` : 'Face down card, tap to flip'}
         style={{ width: cardSize, height: cardSize }}
       >
         {/* ── Card back (unicorn) ── */}
@@ -280,6 +283,33 @@ function checkWinner(board: Cell[]): { winner: Player; line: number[] } | null {
   return null;
 }
 
+/* The unicorn's move. Deliberately imperfect — a perfect tic-tac-toe player
+   can never be beaten, which is miserable for a five-year-old. It takes a
+   win, blocks a loss, and otherwise plays well, but a third of the time it
+   just picks somewhere at random. */
+const AI_SLOPPINESS = 0.34;
+
+function chooseAiMove(board: Cell[], me: Player, opponent: Player): number {
+  const empty = board.reduce<number[]>((acc, c, i) => (c === null ? [...acc, i] : acc), []);
+  if (empty.length === 0) return -1;
+
+  if (Math.random() < AI_SLOPPINESS) {
+    return empty[Math.floor(Math.random() * empty.length)];
+  }
+  for (const i of empty) {
+    const b = [...board]; b[i] = me;
+    if (checkWinner(b)) return i;
+  }
+  for (const i of empty) {
+    const b = [...board]; b[i] = opponent;
+    if (checkWinner(b)) return i;
+  }
+  for (const i of [4, 0, 2, 6, 8, 1, 3, 5, 7]) {
+    if (board[i] === null) return i;
+  }
+  return empty[0];
+}
+
 function TicTacToeGame() {
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
@@ -290,60 +320,115 @@ function TicTacToeGame() {
   const [current, setCurrent] = useState<Player>('❤️');
   const [winResult, setWinResult] = useState<{ winner: Player; line: number[] } | null>(null);
   const [isDraw, setIsDraw] = useState(false);
+  const [vsComputer, setVsComputer] = useState(true);
   const scaleAnims = useRef(Array.from({ length: 9 }, () => new Animated.Value(0))).current;
+
+  const HUMAN: Player = '❤️';
+  const AI: Player = '⭐';
+
+  const playMove = useCallback((idx: number, player: Player) => {
+    setBoard((prev) => {
+      if (prev[idx] !== null) return prev;
+      const next = [...prev];
+      next[idx] = player;
+
+      scaleAnims[idx].setValue(0);
+      Animated.spring(scaleAnims[idx], {
+        toValue: 1, friction: 5, tension: 180, useNativeDriver: true,
+      }).start();
+
+      const result = checkWinner(next);
+      if (result) {
+        setWinResult(result);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else if (next.every((c) => c !== null)) {
+        setIsDraw(true);
+      } else {
+        setCurrent(player === '❤️' ? '⭐' : '❤️');
+      }
+      return next;
+    });
+  }, [scaleAnims]);
 
   const handleCellPress = (idx: number) => {
     if (board[idx] || winResult || isDraw) return;
-
-    const newBoard = [...board];
-    newBoard[idx] = current;
-    setBoard(newBoard);
-
-    scaleAnims[idx].setValue(0);
-    Animated.spring(scaleAnims[idx], {
-      toValue: 1,
-      friction: 5,
-      tension: 180,
-      useNativeDriver: true,
-    }).start();
-
+    if (vsComputer && current !== HUMAN) return;   // not your turn
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const result = checkWinner(newBoard);
-    if (result) {
-      setWinResult(result);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (newBoard.every((c) => c !== null)) {
-      setIsDraw(true);
-    } else {
-      setCurrent(current === '❤️' ? '⭐' : '❤️');
-    }
+    playMove(idx, current);
   };
 
-  const resetGame = () => {
+  /* The unicorn takes its turn, after a beat so it feels like thinking. */
+  useEffect(() => {
+    if (!vsComputer || winResult || isDraw || current !== AI) return;
+    const t = setTimeout(() => {
+      const idx = chooseAiMove(board, AI, HUMAN);
+      if (idx >= 0) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        playMove(idx, AI);
+      }
+    }, 620);
+    return () => clearTimeout(t);
+  }, [vsComputer, current, board, winResult, isDraw, playMove]);
+
+  const resetGame = useCallback(() => {
     setBoard(Array(9).fill(null));
     setCurrent('❤️');
     setWinResult(null);
     setIsDraw(false);
     scaleAnims.forEach((a) => a.setValue(0));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, [scaleAnims]);
+
+  const switchMode = (next: boolean) => {
+    setVsComputer(next);
+    resetGame();
   };
 
   const isWinCell = (i: number) => winResult?.line.includes(i) ?? false;
 
   return (
     <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 100 }}>
+      {/* Who am I playing? */}
+      <View style={[styles.tttModeRow, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <Pressable
+          onPress={() => switchMode(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Play against the unicorn"
+          accessibilityState={{ selected: vsComputer }}
+          style={[styles.tttModeBtn, vsComputer && { backgroundColor: colors.midPurple }]}
+        >
+          <Text style={[styles.tttModeText, { color: vsComputer ? '#fff' : colors.deepPurple }]}>
+            🦄 vs Unicorn
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => switchMode(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Play with a friend, two players"
+          accessibilityState={{ selected: !vsComputer }}
+          style={[styles.tttModeBtn, !vsComputer && { backgroundColor: colors.midPurple }]}
+        >
+          <Text style={[styles.tttModeText, { color: !vsComputer ? '#fff' : colors.deepPurple }]}>
+            👭 2 Players
+          </Text>
+        </Pressable>
+      </View>
+
       {/* Status */}
       <View style={styles.tttStatusBox}>
         {winResult ? (
           <Text style={[styles.tttStatusText, { color: colors.deepPurple }]}>
-            {winResult.winner} Wins! 🎉
+            {vsComputer
+              ? (winResult.winner === HUMAN ? 'You win! 🎉' : 'The unicorn wins! 🦄')
+              : `${winResult.winner} Wins! 🎉`}
           </Text>
         ) : isDraw ? (
           <Text style={[styles.tttStatusText, { color: colors.deepPurple }]}>It's a draw! 🌈</Text>
         ) : (
           <Text style={[styles.tttStatusText, { color: colors.deepPurple }]}>
-            {current}'s turn
+            {vsComputer
+              ? (current === HUMAN ? 'Your turn!' : 'Unicorn is thinking…')
+              : `${current}'s turn`}
           </Text>
         )}
       </View>
@@ -371,7 +456,7 @@ function TicTacToeGame() {
                   { color: isActive || isWinner ? '#fff' : colors.deepPurple },
                 ]}
               >
-                Player {i + 1}
+                {vsComputer ? (p === HUMAN ? 'You' : 'Unicorn') : `Player ${i + 1}`}
               </Text>
             </View>
           );
@@ -401,6 +486,8 @@ function TicTacToeGame() {
                 <Pressable
                   key={col}
                   onPress={() => handleCellPress(idx)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Row ${row + 1}, column ${col + 1}${cell ? `, ${cell === HUMAN ? 'yours' : 'unicorn'}` : ', empty'}`}
                   style={({ pressed }) => [
                     styles.tttCell,
                     {
@@ -465,6 +552,7 @@ function TicTacToeGame() {
 ═══════════════════════════════════════════════════════════════ */
 
 const SPELL_SYMBOLS = ['🌈', '⭐', '💎', '🌙', '🌸', '💜'];
+const BEST_STREAK_KEY = '@unicorn_spell_best';
 
 type SpellPhase = 'showing' | 'input' | 'won' | 'lost';
 
@@ -486,6 +574,24 @@ function MagicSpellGame() {
   // Start first round
   useEffect(() => {
     startNextRound([]);
+  }, []);
+
+  // Coming back to a remembered streak is most of what brings a child back.
+  useEffect(() => {
+    AsyncStorage.getItem(BEST_STREAK_KEY)
+      .then((raw) => {
+        const n = raw ? parseInt(raw, 10) : 0;
+        if (Number.isFinite(n) && n > 0) setBest(n);
+      })
+      .catch(() => {});
+  }, []);
+
+  const recordBest = useCallback((streak: number) => {
+    setBest((prev) => {
+      if (streak <= prev) return prev;
+      AsyncStorage.setItem(BEST_STREAK_KEY, String(streak)).catch(() => {});
+      return streak;
+    });
   }, []);
 
   const flashButton = (symbolIdx: number, duration = 500): Promise<void> =>
@@ -536,8 +642,7 @@ function MagicSpellGame() {
 
     if (next.length === sequence.length) {
       // Completed round
-      const newBest = Math.max(best, sequence.length);
-      setBest(newBest);
+      recordBest(sequence.length);
       setPhase('won');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -603,6 +708,8 @@ function MagicSpellGame() {
               key={i}
               onPress={() => handlePress(i)}
               disabled={phase !== 'input'}
+              accessibilityRole="button"
+              accessibilityLabel={`Spell symbol ${i + 1}`}
               style={{ margin: 6 }}
             >
               <Animated.View
@@ -829,6 +936,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tttStatusText: { fontSize: 22, fontWeight: '700', fontFamily: 'Inter_700Bold', textAlign: 'center' },
+
+  tttModeRow: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  tttModeBtn: { paddingHorizontal: 18, paddingVertical: 9 },
+  tttModeText: { fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
 
   tttPlayers: { flexDirection: 'row', gap: 16, marginBottom: 20 },
   tttPlayerChip: {

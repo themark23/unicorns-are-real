@@ -1,8 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Speech from 'expo-speech';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Platform,
@@ -18,6 +19,8 @@ import { STORY_CATEGORIES, StoryCategory, UNICORN_STORIES, UnicornStory } from '
 import { useColors } from '@/hooks/useColors';
 
 type Section = 'facts' | 'stories';
+
+const FACTS_SEEN_KEY = '@unicorn_facts_seen';
 
 const CATEGORY_ICONS: Record<StoryCategory, keyof typeof Ionicons.glyphMap> = {
   'magical adventure': 'sparkles',
@@ -35,10 +38,24 @@ function FactsSection() {
   const [currentIndex, setCurrentIndex] = useState(1);
   const sparkleAnim = useRef(new Animated.Value(0)).current;
 
+  /* Facts already discovered are remembered between sessions. */
+  useEffect(() => {
+    AsyncStorage.getItem(FACTS_SEEN_KEY)
+      .then((raw) => {
+        const n = raw ? parseInt(raw, 10) : 0;
+        if (!Number.isFinite(n) || n < 1) return;
+        const count = Math.min(n, UNICORN_FACTS.length);
+        setCurrentIndex(count);
+        setShownFacts(UNICORN_FACTS.slice(0, count).reverse());
+      })
+      .catch(() => {});
+  }, []);
+
   const handleNextFact = () => {
     if (currentIndex >= UNICORN_FACTS.length) return;
     setShownFacts((prev) => [UNICORN_FACTS[currentIndex], ...prev]);
     setCurrentIndex((i) => i + 1);
+    AsyncStorage.setItem(FACTS_SEEN_KEY, String(currentIndex + 1)).catch(() => {});
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.sequence([
       Animated.timing(sparkleAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -118,6 +135,8 @@ function FactsSection() {
             </Text>
             <Pressable
               onPress={() => handleSpeak(fact)}
+              accessibilityRole="button"
+              accessibilityLabel={isSpeaking ? 'Pause reading this fact' : 'Listen to this fact'}
               style={({ pressed }) => [
                 styles.playBtn,
                 {
@@ -254,6 +273,8 @@ function StoriesSection() {
             <Text style={styles.storyTitle} numberOfLines={2}>{selectedStory.title}</Text>
             <Pressable
               onPress={() => handleSpeak(selectedStory)}
+              accessibilityRole="button"
+              accessibilityLabel={speakingId === selectedStory.id ? 'Pause the story' : 'Read the story aloud'}
               style={({ pressed }) => [styles.listenBtn, { opacity: pressed ? 0.7 : 1 }]}
             >
               <Ionicons
@@ -293,6 +314,10 @@ export default function ReadScreen() {
   const colors = useColors();
   const [section, setSection] = useState<Section>('stories');
   const topPad = Platform.OS === 'web' ? 67 : 0;
+
+  /* Without this, walking away from the Read tab leaves the narrator reading
+     over whatever the child does next, with no visible control to stop it. */
+  useEffect(() => () => { Speech.stop(); }, []);
 
   const handleSectionSwitch = (s: Section) => {
     Speech.stop();

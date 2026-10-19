@@ -1,12 +1,12 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Animated,
   Platform,
   Pressable,
   ScrollView,
@@ -40,19 +40,68 @@ const PALETTE = [
   '#f87171', '#fb7185', '#fcd34d', '#6ee7b7', '#ffffff', '#26215C', '#000000',
 ];
 
+/* Spoken names, so the palette is usable with VoiceOver. */
+const COLOR_NAMES: Record<string, string> = {
+  '#ff6eb4': 'Hot pink',   '#ff9de2': 'Bubblegum', '#f472b6': 'Rose',
+  '#c084fc': 'Purple',     '#a78bfa': 'Lavender',  '#818cf8': 'Periwinkle',
+  '#60a5fa': 'Blue',       '#7dd3fc': 'Sky blue',  '#34d399': 'Emerald',
+  '#4ade80': 'Green',      '#fbbf24': 'Amber',     '#fb923c': 'Orange',
+  '#f87171': 'Red',        '#fb7185': 'Coral',     '#fcd34d': 'Yellow',
+  '#6ee7b7': 'Mint',       '#ffffff': 'White',     '#26215C': 'Midnight',
+  '#000000': 'Black',
+};
+
 /* ─── Brush sizes ─────────────────────────────────────────────────────────── */
 const BRUSHES = [3, 6, 12, 20];
+const BRUSH_NAMES = ['Extra small', 'Small', 'Medium', 'Large'];
 
 type DrawMode = 'brush' | 'fill';
 
-/* ─── Load image as base64 data URL ─────────────────────────────────────── */
-async function loadAsBase64(module: number): Promise<string> {
+/* ─── Saved artwork ────────────────────────────────────────────────────────
+   Each page's canvas is written to the document directory as a PNG, so a
+   drawing survives page changes, tab changes and app restarts. Images are
+   far too large for AsyncStorage, hence the filesystem. */
+const ART_DIR = new Directory(Paths.document, 'coloring');
+
+function artFile(pageIdx: number): File {
+  return new File(ART_DIR, `page-${pageIdx}.png`);
+}
+
+function ensureArtDir(): void {
+  if (!ART_DIR.exists) ART_DIR.create({ intermediates: true, idempotent: true });
+}
+
+/* ─── Load image as base64 data URL ───────────────────────────────────────
+   NOTE: expo-file-system v19 moved readAsStringAsync to the /legacy entry —
+   calling it from the package root throws at runtime. Uses the File API. */
+async function loadBundledPage(module: number): Promise<string> {
   const asset = Asset.fromModule(module);
   await asset.downloadAsync();
-  const b64 = await FileSystem.readAsStringAsync(asset.localUri!, {
-    encoding: 'base64',
-  });
+  const b64 = await new File(asset.localUri!).base64();
   return `data:image/png;base64,${b64}`;
+}
+
+/* Prefer the child's saved artwork; fall back to the blank line art. */
+async function loadPage(pageIdx: number): Promise<string> {
+  ensureArtDir();
+  const saved = artFile(pageIdx);
+  if (saved.exists) {
+    return `data:image/png;base64,${await saved.base64()}`;
+  }
+  return loadBundledPage(PAGES[pageIdx].src);
+}
+
+function writeArt(pageIdx: number, dataUrl: string): void {
+  ensureArtDir();
+  const f = artFile(pageIdx);
+  if (f.exists) f.delete();
+  f.create();
+  f.write(dataUrl.replace(/^data:image\/png;base64,/, ''), { encoding: 'base64' });
+}
+
+function deleteArt(pageIdx: number): void {
+  const f = artFile(pageIdx);
+  if (f.exists) f.delete();
 }
 
 /* ─── Build WebView HTML ──────────────────────────────────────────────────── */
@@ -236,6 +285,11 @@ function clearCanvas(){
   ctx.drawImage(img,0,0,SZ,SZ);
   if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:0');
 }
+/* Hand the finished canvas back to RN so it can be written to disk. */
+function requestSave(tag){
+  if(!window.ReactNativeWebView)return;
+  window.ReactNativeWebView.postMessage('art:'+tag+':'+canvas.toDataURL('image/png'));
+}
 </script>
 </body></html>`;
 }
@@ -258,14 +312,27 @@ export default function ColoringScreen() {
   const [canUndo,      setCanUndo]      = useState(false);
 
   const webViewRef = useRef<WebView>(null);
+  /* Page we should move to once the current canvas has been handed back. */
+  const pendingPage = useRef<number | null>(null);
+  const canvasReady = useRef(false);
 
-  /* ── Load image for current page ── */
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const showToast = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1200),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 320, useNativeDriver: true }),
+    ]).start();
+  }, [toastOpacity]);
+
+  /* ── Load image for current page (saved artwork wins over blank line art) ── */
   useEffect(() => {
     let cancelled = false;
+    canvasReady.current = false;
     setLoading(true);
     setImageDataUrl(null);
     setCanUndo(false);
-    loadAsBase64(PAGES[pageIdx].src)
+    loadPage(pageIdx)
       .then((url) => { if (!cancelled) { setImageDataUrl(url); setLoading(false); } })
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -278,19 +345,23 @@ export default function ColoringScreen() {
     );
   }, [selColor, mode, brushIdx]);
 
-  /* ── Navigation ── */
-  const goNext = () => {
-    if (pageIdx < PAGES.length - 1) {
-      setPageIdx((p) => p + 1);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  /* ── Navigation — always bank the drawing before leaving the page ── */
+  const goToPage = useCallback((next: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!canvasReady.current) { setPageIdx(next); return; }
+    pendingPage.current = next;
+    webViewRef.current?.injectJavaScript("requestSave('turn');true;");
+  }, []);
+
+  const goNext = () => { if (pageIdx < PAGES.length - 1) goToPage(pageIdx + 1); };
+  const goPrev = () => { if (pageIdx > 0) goToPage(pageIdx - 1); };
+
+  /* Bank the drawing when the child navigates away from the tab entirely. */
+  useEffect(() => () => {
+    if (canvasReady.current) {
+      webViewRef.current?.injectJavaScript("requestSave('leave');true;");
     }
-  };
-  const goPrev = () => {
-    if (pageIdx > 0) {
-      setPageIdx((p) => p - 1);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
+  }, []);
 
   /* ── Undo ── */
   const handleUndo = () => {
@@ -298,21 +369,17 @@ export default function ColoringScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  /* ── Clear ── */
+  /* ── Clear — also discards the saved copy ── */
   const handleClear = () => {
     webViewRef.current?.injectJavaScript('clearCanvas();true;');
+    deleteArt(pageIdx);
     setCanUndo(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   /* ── Save ── */
   const handleSave = useCallback(() => {
-    Alert.alert(
-      '💾 Save Your Art',
-      'Take a screenshot to save your coloring!\n\niPhone/iPad: Side Button + Volume Up',
-      [{ text: 'Got it! 🌟', style: 'default' }]
-    );
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    webViewRef.current?.injectJavaScript("requestSave('button');true;");
   }, []);
 
   /* ── Message from WebView ── */
@@ -320,12 +387,31 @@ export default function ColoringScreen() {
     const msg = event.nativeEvent.data;
     if (msg === 'haptic') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else if (msg === 'canUndo:1') {
-      setCanUndo(true);
-    } else if (msg === 'canUndo:0') {
-      setCanUndo(false);
+      return;
     }
-  }, []);
+    if (msg === 'canUndo:1') { setCanUndo(true);  return; }
+    if (msg === 'canUndo:0') { setCanUndo(false); return; }
+
+    if (msg.startsWith('art:')) {
+      const sep = msg.indexOf(':', 4);
+      const tag = msg.slice(4, sep);
+      const dataUrl = msg.slice(sep + 1);
+      try {
+        writeArt(pageIdx, dataUrl);
+      } catch {
+        /* Saving is best-effort; never interrupt a child mid-drawing. */
+      }
+      if (tag === 'button') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showToast();
+      }
+      if (pendingPage.current !== null) {
+        const next = pendingPage.current;
+        pendingPage.current = null;
+        setPageIdx(next);
+      }
+    }
+  }, [pageIdx, showToast]);
 
   const page      = PAGES[pageIdx];
   const brushSize = BRUSHES[brushIdx];
@@ -339,11 +425,13 @@ export default function ColoringScreen() {
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.deepPurple }]}>Colouring</Text>
+        <Text style={[styles.title, { color: colors.deepPurple }]}>Coloring</Text>
         <View style={styles.headerBtns}>
           <Pressable
             onPress={handleUndo}
             disabled={!canUndo}
+            accessibilityRole="button"
+            accessibilityLabel="Undo last change"
             style={({ pressed }) => [
               styles.hdrBtn,
               { borderColor: colors.border, opacity: !canUndo ? 0.35 : pressed ? 0.6 : 1 },
@@ -354,6 +442,8 @@ export default function ColoringScreen() {
           </Pressable>
           <Pressable
             onPress={handleClear}
+            accessibilityRole="button"
+            accessibilityLabel="Clear this page and start over"
             style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
           >
             <Ionicons name="refresh" size={15} color={colors.textMuted} />
@@ -361,6 +451,8 @@ export default function ColoringScreen() {
           </Pressable>
           <Pressable
             onPress={handleSave}
+            accessibilityRole="button"
+            accessibilityLabel="Save your artwork"
             style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.midPurple, opacity: pressed ? 0.6 : 1 }]}
           >
             <MaterialCommunityIcons name="content-save" size={15} color={colors.midPurple} />
@@ -373,6 +465,9 @@ export default function ColoringScreen() {
       <View style={[styles.modeRow, { borderColor: colors.border }]}>
         <Pressable
           onPress={() => { setMode('brush'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          accessibilityRole="button"
+          accessibilityLabel="Brush mode"
+          accessibilityState={{ selected: mode === 'brush' }}
           style={[styles.modeBtn, mode === 'brush' && { backgroundColor: colors.midPurple }]}
         >
           <MaterialCommunityIcons name="brush" size={17} color={mode === 'brush' ? '#fff' : colors.textMuted} />
@@ -380,6 +475,9 @@ export default function ColoringScreen() {
         </Pressable>
         <Pressable
           onPress={() => { setMode('fill'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          accessibilityRole="button"
+          accessibilityLabel="Fill mode"
+          accessibilityState={{ selected: mode === 'fill' }}
           style={[styles.modeBtn, mode === 'fill' && { backgroundColor: colors.midPurple }]}
         >
           <MaterialCommunityIcons name="bucket" size={17} color={mode === 'fill' ? '#fff' : colors.textMuted} />
@@ -398,6 +496,9 @@ export default function ColoringScreen() {
           <Pressable
             key={c}
             onPress={() => { setSelColor(c); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            accessibilityRole="button"
+            accessibilityLabel={`${COLOR_NAMES[c] ?? c} color`}
+            accessibilityState={{ selected: selColor === c }}
             style={[
               styles.swatch,
               { backgroundColor: c },
@@ -417,6 +518,9 @@ export default function ColoringScreen() {
           <Pressable
             key={sz}
             onPress={() => { setBrushIdx(i); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            accessibilityRole="button"
+            accessibilityLabel={`${BRUSH_NAMES[i]} ${mode === 'fill' ? 'fill' : 'brush'}`}
+            accessibilityState={{ selected: i === brushIdx }}
             style={[styles.brushBtn, { borderColor: i === brushIdx ? colors.midPurple : colors.border }]}
           >
             <View style={[
@@ -441,6 +545,8 @@ export default function ColoringScreen() {
         <Pressable
           onPress={goPrev}
           disabled={pageIdx === 0}
+          accessibilityRole="button"
+          accessibilityLabel="Previous coloring page"
           style={({ pressed }) => [styles.navBtn, { opacity: pageIdx === 0 ? 0.3 : pressed ? 0.6 : 1 }]}
         >
           <Ionicons name="chevron-back" size={22} color={colors.midPurple} />
@@ -452,6 +558,8 @@ export default function ColoringScreen() {
         <Pressable
           onPress={goNext}
           disabled={pageIdx === PAGES.length - 1}
+          accessibilityRole="button"
+          accessibilityLabel="Next coloring page"
           style={({ pressed }) => [styles.navBtn, { opacity: pageIdx === PAGES.length - 1 ? 0.3 : pressed ? 0.6 : 1 }]}
         >
           <Ionicons name="chevron-forward" size={22} color={colors.midPurple} />
@@ -474,14 +582,21 @@ export default function ColoringScreen() {
             scrollEnabled={false}
             bounces={false}
             onLoad={() => {
+              canvasReady.current = true;
               webViewRef.current?.injectJavaScript(
                 `updateSettings('${selColor}','${mode}',${BRUSHES[brushIdx]});true;`
               );
             }}
             onMessage={onMessage}
-            allowFileAccess
-            mixedContentMode="always"
-            originWhitelist={['*']}
+            /* Kids Category: this canvas is a local document and must never be
+               able to navigate anywhere. Everything below is deliberate. */
+            originWhitelist={['about:blank']}
+            onShouldStartLoadWithRequest={(req) => req.url === 'about:blank'}
+            javaScriptCanOpenWindowsAutomatically={false}
+            allowsLinkPreview={false}
+            setSupportMultipleWindows={false}
+            allowFileAccess={false}
+            allowUniversalAccessFromFileURLs={false}
           />
         )}
       </View>
@@ -489,9 +604,15 @@ export default function ColoringScreen() {
       {/* ── Hint ── */}
       <Text style={[styles.hint, { color: colors.textMuted }]}>
         {mode === 'fill'
-          ? 'Tap any region to fill it with your colour ✨'
+          ? 'Tap any region to fill it with your color ✨'
           : 'Draw with your finger ✨'}
       </Text>
+
+      {/* ── Saved toast ── */}
+      <Animated.View pointerEvents="none" style={[styles.toast, { opacity: toastOpacity }]}>
+        <MaterialCommunityIcons name="star-four-points" size={15} color="#fff" />
+        <Text style={styles.toastText}>Artwork Saved!</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -558,5 +679,24 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 11, textAlign: 'center',
     fontFamily: 'Inter_400Regular', marginTop: 8,
+  },
+
+  toast: {
+    position: 'absolute',
+    bottom: 96,
+    alignSelf: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#534AB7',
+    paddingHorizontal: 22, paddingVertical: 12,
+    borderRadius: 30,
+    shadowColor: '#534AB7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  toastText: {
+    color: '#fff', fontSize: 15,
+    fontWeight: '700', fontFamily: 'Inter_700Bold',
   },
 });
