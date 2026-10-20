@@ -21,16 +21,8 @@ export const UNICORN_FACTS: UnicornFact[] = [
     text: "Unicorns with both a horn AND wings are called 'alicorns' — which means they can gallop on the ground AND soar through the sky!",
   },
   {
-    id: 'f5',
-    text: "Ancient people believed that a unicorn's horn, called an 'alicorn,' had the magical power to purify poisoned water and heal the sick.",
-  },
-  {
     id: 'f6',
     text: "A narwhal — a real ocean animal — is sometimes called the 'unicorn of the sea' because it has a long, beautiful spiraling tusk!",
-  },
-  {
-    id: 'f7',
-    text: "In Chinese mythology, the unicorn is called a 'qilin' and was said to appear only when a very wise and kind ruler was in power.",
   },
   {
     id: 'f8',
@@ -59,9 +51,5 @@ export const UNICORN_FACTS: UnicornFact[] = [
   {
     id: 'f14',
     text: "Unicorns are believed to sleep on fluffy clouds made of cotton candy and wake up to drink sparkling water from rainbow waterfalls!",
-  },
-  {
-    id: 'f15',
-    text: "In the world of Harry Potter, unicorns are described as the most purely magical creatures, with blood that shimmers silver like moonlight!",
   },
 ];
