@@ -13,6 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, ClipPath, Defs, Path, Rect, Svg } from 'react-native-svg';
 
 import { MAGIC_POTIONS, MagicPotion } from '@/constants/potions';
@@ -376,7 +377,8 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
 export default function PotionsScreen() {
   const colors    = useColors();
   const [expandedId, setExpandedId] = useState<string | null>('p1');
-  const topPad    = Platform.OS === 'web' ? 67 : 0;
+  const insets    = useSafeAreaInsets();
+  const topPad    = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : 0;
 
   return (

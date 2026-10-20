@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 
 import { useColors } from '@/hooks/useColors';
@@ -299,7 +300,8 @@ export default function ColoringScreen() {
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
 
-  const topPad    = Platform.OS === 'web' ? 67 : 0;
+  const insets    = useSafeAreaInsets();
+  const topPad    = Platform.OS === 'web' ? 67 : insets.top;
   const canvasSize = screenWidth - 32;
 
   const [pageIdx,  setPageIdx]  = useState(0);

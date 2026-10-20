@@ -13,6 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { UNICORN_FACTS, UnicornFact } from '@/constants/facts';
 import { STORY_CATEGORIES, StoryCategory, UNICORN_STORIES, UnicornStory } from '@/constants/stories';
@@ -313,7 +314,8 @@ function StoriesSection() {
 export default function ReadScreen() {
   const colors = useColors();
   const [section, setSection] = useState<Section>('stories');
-  const topPad = Platform.OS === 'web' ? 67 : 0;
+  const insets    = useSafeAreaInsets();
+  const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
   /* Without this, walking away from the Read tab leaves the narrator reading
      over whatever the child does next, with no visible control to stop it. */

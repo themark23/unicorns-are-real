@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
 
@@ -805,7 +806,8 @@ const spellStyles = StyleSheet.create({
 export default function GamesScreen() {
   const colors = useColors();
   const [activeGame, setActiveGame] = useState<GameMode>('memory');
-  const topPad = Platform.OS === 'web' ? 67 : 0;
+  const insets    = useSafeAreaInsets();
+  const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
