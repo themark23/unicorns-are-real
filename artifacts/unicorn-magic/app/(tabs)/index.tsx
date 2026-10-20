@@ -17,6 +17,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnicorn } from '@/context/UnicornContext';
 import { useColors } from '@/hooks/useColors';
 
@@ -304,7 +305,8 @@ export default function DressScreen() {
   const toastTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { width: screenWidth } = useWindowDimensions();
-  const topPad    = Platform.OS === 'web' ? 67 : 0;
+  const insets    = useSafeAreaInsets();
+  const topPad    = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : 0;
   const imgWidth  = screenWidth - 34;
   const imgHeight = imgWidth * (1402 / 1122);
