@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Speech from 'expo-speech';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -18,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNICORN_FACTS, UnicornFact } from '@/constants/facts';
 import { STORY_CATEGORIES, StoryCategory, UNICORN_STORIES, UnicornStory } from '@/constants/stories';
 import { useColors } from '@/hooks/useColors';
+import { useNarration } from '@/hooks/useNarration';
+import { factClip, storyClip } from '@/constants/voiceClips';
 
 type Section = 'facts' | 'stories';
 
@@ -34,7 +35,7 @@ const CATEGORY_ICONS: Record<StoryCategory, keyof typeof Ionicons.glyphMap> = {
 /* ─── Facts section ─────────────────────────────────────────── */
 function FactsSection() {
   const colors = useColors();
-  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const { playingId, toggle } = useNarration();
   const [shownFacts, setShownFacts] = useState<UnicornFact[]>([UNICORN_FACTS[0]]);
   const [currentIndex, setCurrentIndex] = useState(1);
   const sparkleAnim = useRef(new Animated.Value(0)).current;
@@ -64,20 +65,9 @@ function FactsSection() {
     ]).start();
   };
 
-  const handleSpeak = async (fact: UnicornFact) => {
-    if (speakingId === fact.id) {
-      await Speech.stop();
-      setSpeakingId(null);
-      return;
-    }
-    await Speech.stop();
-    setSpeakingId(fact.id);
+  const handleSpeak = (fact: UnicornFact) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Speech.speak(fact.text, {
-      language: 'en-US', pitch: 1.15, rate: 0.85,
-      onDone: () => setSpeakingId(null),
-      onError: () => setSpeakingId(null),
-    });
+    toggle(fact.id, factClip(fact.id));
   };
 
   const sparkleScale = sparkleAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.3, 1] });
@@ -111,7 +101,7 @@ function FactsSection() {
       </Pressable>
 
       {shownFacts.map((fact, index) => {
-        const isSpeaking = speakingId === fact.id;
+        const isSpeaking = playingId === fact.id;
         const isFirst = index === 0;
         return (
           <View
@@ -167,24 +157,13 @@ function StoriesSection() {
   const colors = useColors();
   const [selectedCategory, setSelectedCategory] = useState<StoryCategory>('magical adventure');
   const [selectedStory, setSelectedStory] = useState<UnicornStory | null>(UNICORN_STORIES[0]);
-  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const { playingId, toggle } = useNarration();
 
   const filteredStories = UNICORN_STORIES.filter((s) => s.category === selectedCategory);
 
-  const handleSpeak = async (story: UnicornStory) => {
-    if (speakingId === story.id) {
-      await Speech.stop();
-      setSpeakingId(null);
-      return;
-    }
-    await Speech.stop();
-    setSpeakingId(story.id);
+  const handleSpeak = (story: UnicornStory) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Speech.speak(`${story.title}. ${story.text}`, {
-      language: 'en-US', pitch: 1.1, rate: 0.8,
-      onDone: () => setSpeakingId(null),
-      onError: () => setSpeakingId(null),
-    });
+    toggle(story.id, storyClip(story.id));
   };
 
   return (
@@ -275,11 +254,11 @@ function StoriesSection() {
             <Pressable
               onPress={() => handleSpeak(selectedStory)}
               accessibilityRole="button"
-              accessibilityLabel={speakingId === selectedStory.id ? 'Pause the story' : 'Read the story aloud'}
+              accessibilityLabel={playingId === selectedStory.id ? 'Pause the story' : 'Read the story aloud'}
               style={({ pressed }) => [styles.listenBtn, { opacity: pressed ? 0.7 : 1 }]}
             >
               <Ionicons
-                name={speakingId === selectedStory.id ? 'pause' : 'play'}
+                name={playingId === selectedStory.id ? 'pause' : 'play'}
                 size={20}
                 color="#ffd700"
               />
@@ -295,12 +274,12 @@ function StoriesSection() {
               ]}
             >
               <Ionicons
-                name={speakingId === selectedStory.id ? 'pause-circle' : 'play-circle'}
+                name={playingId === selectedStory.id ? 'pause-circle' : 'play-circle'}
                 size={22}
                 color={colors.midPurple}
               />
               <Text style={[styles.readAloudText, { color: colors.midPurple }]}>
-                {speakingId === selectedStory.id ? 'Pause Story' : 'Read This Story Aloud'}
+                {playingId === selectedStory.id ? 'Pause Story' : 'Read This Story Aloud'}
               </Text>
             </Pressable>
           </View>
@@ -317,12 +296,7 @@ export default function ReadScreen() {
   const insets    = useSafeAreaInsets();
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
-  /* Without this, walking away from the Read tab leaves the narrator reading
-     over whatever the child does next, with no visible control to stop it. */
-  useEffect(() => () => { Speech.stop(); }, []);
-
   const handleSectionSwitch = (s: Section) => {
-    Speech.stop();
     setSection(s);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
