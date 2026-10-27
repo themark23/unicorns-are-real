@@ -62,7 +62,7 @@ export default function Footer() {
                 onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(270, 60%, 75%)")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(265, 15%, 55%)")}
               >
-                Unicorn Magic
+                Unicorn Magic Playhouse
               </span>
             </Link>
             <Link href="/unicorn-valley" data-testid="link-footer-unicorn-valley">

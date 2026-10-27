@@ -110,7 +110,7 @@ export default function Home() {
             className="text-lg md:text-xl leading-relaxed mb-10 max-w-xl mx-auto"
             style={{ color: "hsl(265, 15%, 62%)" }}
           >
-            Unicorn Magic is a magical activity app for kids — dress unicorns, feed them, and play together. Unicorn Valley is a free-play world where kids drag five unicorn friends across six hand-painted scenes. And in Alacorn Adventure, those same friends grow wings and fly.
+            Unicorn Magic Playhouse is a magical activity app for kids — dress unicorns, feed them, and play together. Unicorn Valley is a free-play world where kids drag five unicorn friends across six hand-painted scenes. And in Alacorn Adventure, those same friends grow wings and fly.
           </motion.p>
 
           <motion.div
@@ -130,7 +130,7 @@ export default function Home() {
                   boxShadow: "0 8px 32px rgba(139, 92, 246, 0.35)",
                 }}
               >
-                Unicorn Magic <ArrowRight size={15} />
+                Unicorn Magic Playhouse <ArrowRight size={15} />
               </motion.span>
             </Link>
             <Link href="/unicorn-valley" data-testid="link-hero-unicorn-valley">
@@ -200,7 +200,7 @@ export default function Home() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Unicorn Magic Card */}
+            {/* Unicorn Magic Playhouse Card */}
             <motion.div
               initial={{ opacity: 0, y: 32 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -228,7 +228,7 @@ export default function Home() {
               </div>
 
               <h3 className="text-2xl font-serif font-semibold mb-3" style={{ color: "hsl(270, 40%, 92%)" }}>
-                Unicorn Magic
+                Unicorn Magic Playhouse
               </h3>
               <p className="text-sm leading-relaxed mb-6 flex-grow" style={{ color: "hsl(265, 15%, 60%)" }}>
                 Five enchanting activities for little imaginations — dress up a unicorn, read 15 magical stories aloud, color 10 scenes, brew magic potions, and play Memory Match. No ads, no purchases, works offline.
