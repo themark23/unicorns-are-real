@@ -1,6 +1,18 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+
+const PRIVACY_PATHS = [
+  "/unicorn-magic/privacy",
+  "/unicorn-valley/privacy",
+  "/alicorn-adventure/privacy",
+];
 
 export default function Footer() {
+  const [location] = useLocation();
+  // Each app page links to its own policy; everywhere else falls back to the first.
+  const privacyPath =
+    PRIVACY_PATHS.find((path) => location.startsWith(path.replace("/privacy", ""))) ??
+    PRIVACY_PATHS[0];
+
   return (
     <footer
       className="border-t py-12 px-6"
@@ -23,6 +35,17 @@ export default function Footer() {
             <p className="text-sm" style={{ color: "hsl(265, 15%, 55%)" }}>
               unicornsarereal.net
             </p>
+            <p className="text-sm mt-2" style={{ color: "hsl(265, 15%, 55%)" }}>
+              Questions or trouble with an app?{" "}
+              <a
+                href="mailto:markschectman@gmail.com"
+                data-testid="link-footer-support-email"
+                className="transition-colors"
+                style={{ color: "hsl(270, 60%, 75%)" }}
+              >
+                markschectman@gmail.com
+              </a>
+            </p>
           </div>
 
           <nav className="flex flex-wrap justify-center gap-6" data-testid="nav-footer">
@@ -39,7 +62,7 @@ export default function Footer() {
                 onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(270, 60%, 75%)")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(265, 15%, 55%)")}
               >
-                Unicorn Magic
+                Unicorn Magic Playhouse
               </span>
             </Link>
             <Link href="/unicorn-valley" data-testid="link-footer-unicorn-valley">
@@ -50,15 +73,15 @@ export default function Footer() {
                 Unicorn Valley
               </span>
             </Link>
-            <Link href="/alacorn-adventure" data-testid="link-footer-alacorn-adventure">
+            <Link href="/alicorn-adventure" data-testid="link-footer-alicorn-adventure">
               <span className="text-sm cursor-pointer transition-colors" style={{ color: "hsl(265, 15%, 55%)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(38, 90%, 68%)")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(265, 15%, 55%)")}
               >
-                Alacorn Adventure
+                Alicorn Adventure
               </span>
             </Link>
-            <Link href="/alacorn-adventure/privacy" data-testid="link-footer-privacy">
+            <Link href={privacyPath} data-testid="link-footer-privacy">
               <span className="text-sm cursor-pointer transition-colors" style={{ color: "hsl(265, 15%, 55%)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(270, 60%, 75%)")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(265, 15%, 55%)")}

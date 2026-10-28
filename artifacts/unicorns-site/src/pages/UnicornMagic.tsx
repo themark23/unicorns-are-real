@@ -73,8 +73,8 @@ const parentReasons = [
 
 const faqItems = [
   {
-    question: "What age is Unicorn Magic made for?",
-    answer: "Unicorn Magic is designed for children ages 4 to 8. The interface uses large icons, simple taps, and zero text-heavy navigation so even pre-readers can explore on their own.",
+    question: "What age is Unicorn Magic Playhouse made for?",
+    answer: "Unicorn Magic Playhouse is designed for children ages 4 to 8. The interface uses large icons, simple taps, and zero text-heavy navigation so even pre-readers can explore on their own.",
   },
   {
     question: "Is it free? Are there ads or in-app purchases?",
@@ -98,7 +98,7 @@ const faqItems = [
   },
   {
     question: "What device does it work on?",
-    answer: "Unicorn Magic is an iOS app for iPhone and iPad.",
+    answer: "Unicorn Magic Playhouse is an iPhone app.",
   },
   {
     question: "Does it save my child's progress?",
@@ -148,7 +148,7 @@ export default function UnicornMagic() {
             </h1>
 
             <p className="text-lg leading-relaxed mb-8" style={{ color: "hsl(265, 15%, 62%)" }}>
-              Unicorn Magic is the screen-time parents feel good about — five enchanting activities designed for little imaginations ages 4 to 8. No ads. No purchases. Just pure sparkle.
+              Unicorn Magic Playhouse is the screen-time parents feel good about — five enchanting activities designed for little imaginations ages 4 to 8. No ads. No purchases. Just pure sparkle.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -194,7 +194,7 @@ export default function UnicornMagic() {
               >
                 <img
                   src={dressImg}
-                  alt="Unicorn Magic dress-up screen"
+                  alt="Unicorn Magic Playhouse dress-up screen"
                   className="w-full h-full object-cover object-top"
                 />
               </div>

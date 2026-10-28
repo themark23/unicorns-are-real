@@ -32,7 +32,7 @@ export default function UnicornMagicPrivacy() {
               className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer mb-8"
               style={{ color: GOLD }}
             >
-              <ArrowLeft size={14} /> Unicorn Magic
+              <ArrowLeft size={14} /> Unicorn Magic Playhouse
             </motion.span>
           </Link>
 
@@ -40,11 +40,11 @@ export default function UnicornMagicPrivacy() {
             Privacy Policy
           </h1>
           <p className="text-sm mb-10" style={{ color: "hsl(265, 15%, 52%)" }}>
-            Unicorn Magic · Last updated August 7, 2026
+            Unicorn Magic Playhouse · Last updated October 27, 2026
           </p>
 
           <div
-            className="app-card-alacorn rounded-2xl p-7 mb-10 text-lg font-serif"
+            className="app-card-alicorn rounded-2xl p-7 mb-10 text-lg font-serif"
             style={{ color: "hsl(38, 45%, 88%)" }}
           >
             We do not collect, store, transmit, or share any personal
@@ -53,7 +53,7 @@ export default function UnicornMagicPrivacy() {
 
           <Section title="Built for children">
             <p>
-              Unicorn Magic is a dress-up, coloring, story and games app made for
+              Unicorn Magic Playhouse is a dress-up, coloring, story and games app made for
               children and their families. Protecting privacy — especially
               children's — is our highest priority.
             </p>

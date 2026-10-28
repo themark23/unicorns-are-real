@@ -13,15 +13,15 @@ import sceneForest from "@assets/scene-forest_1782164751361.jpg";
 import sceneSpace from "@assets/scene-space_1782164751363.jpg";
 import sceneGarden from "@assets/scene-garden_1782164751362.jpg";
 import sceneCastle from "@assets/scene-castle_1782164751360.jpg";
-import shotPickUnicorn from "@assets/alacorn-01-pick-unicorn.jpg";
-import shotPickWorld from "@assets/alacorn-02-pick-world.jpg";
-import shotCrystalCity from "@assets/alacorn-03-crystal-city.jpg";
-import shotOuterSpace from "@assets/alacorn-04-outer-space.jpg";
-import shotResults from "@assets/alacorn-05-results.jpg";
+import shotPickUnicorn from "@assets/alicorn-01-pick-unicorn.jpg";
+import shotPickWorld from "@assets/alicorn-02-pick-world.jpg";
+import shotCrystalCity from "@assets/alicorn-03-crystal-city.jpg";
+import shotOuterSpace from "@assets/alicorn-04-outer-space.jpg";
+import shotResults from "@assets/alicorn-05-results.jpg";
 
 const GOLD = "hsl(38, 90%, 72%)";
 
-const alacorns = [
+const alicorns = [
   { name: "Celestia", img: celestiaImg, scale: 1.0,  trait: "Star horn" },
   { name: "Orion",    img: orionImg,    scale: 1.6,  trait: "Moon horn" },
   { name: "Lumi",     img: lumiImg,     scale: 1.55, trait: "Rainbow mane" },
@@ -40,7 +40,7 @@ const worlds = [
 const screens = [
   {
     label: "Choose your flyer",
-    title: "Pick your alacorn",
+    title: "Pick your alicorn",
     description:
       "All five friends from Unicorn Valley, now with wings. Celestia, Orion, Lumi, Comet and Twinkle each have their own horn, mane and sparkle — tap the one you want and go.",
     image: shotPickUnicorn,
@@ -91,13 +91,13 @@ const screens = [
 ];
 
 const features = [
-  { icon: Hand,        title: "One finger to fly",   text: "Your alacorn glides on its own — kids just drag anywhere on screen to turn, climb and dive. Built for ages 4 and up, no reading required." },
+  { icon: Hand,        title: "One finger to fly",   text: "Your alicorn glides on its own — kids just drag anywhere on screen to turn, climb and dive. Built for ages 4 and up, no reading required." },
   { icon: Timer,       title: "45-second treasure hunts", text: "Short, replayable rounds. Collect as many magical crystals as you can before the timer runs out, then beat your best score." },
   { icon: Gem,         title: "Golden star crystals", text: "Rare golden stars are worth five crystals each. Find them and the score really climbs." },
   { icon: ShieldCheck, title: "Completely kid-safe",  text: "No ads, no in-app purchases, no data collection, no links out. Works fully offline." },
 ];
 
-export default function AlacornAdventure() {
+export default function AlicornAdventure() {
   return (
     <div className="magic-bg min-h-screen">
       <Header />
@@ -135,7 +135,7 @@ export default function AlacornAdventure() {
           >
             <span style={{ color: "hsl(270, 20%, 90%)" }}>Unicorn Valley</span>
             <br />
-            <span className="gradient-text">Alacorn Adventure</span>
+            <span className="gradient-text">Alicorn Adventure</span>
           </motion.h1>
 
           <motion.p
@@ -145,7 +145,7 @@ export default function AlacornAdventure() {
             className="text-lg md:text-xl leading-relaxed mb-10 max-w-xl mx-auto"
             style={{ color: "hsl(265, 15%, 62%)" }}
           >
-            A 3D flying game for little ones. Pick an alacorn — a unicorn with
+            A 3D flying game for little ones. Pick an alicorn — a unicorn with
             wings — and soar through five magical worlds, gathering every glowing
             crystal you can before time runs out.
           </motion.p>
@@ -167,7 +167,7 @@ export default function AlacornAdventure() {
             >
               Coming soon to the App Store
             </span>
-            <Link href="/" data-testid="link-alacorn-back-home">
+            <Link href="/" data-testid="link-alicorn-back-home">
               <motion.span
                 whileHover={{ x: 4 }}
                 className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer"
@@ -202,7 +202,7 @@ export default function AlacornAdventure() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.08 }}
-                className="app-card-alacorn rounded-2xl p-7"
+                className="app-card-alicorn rounded-2xl p-7"
                 data-testid={`card-feature-${i}`}
               >
                 <div
@@ -254,7 +254,7 @@ export default function AlacornAdventure() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.55, delay: 0.05 }}
                   className={`grid md:grid-cols-2 gap-10 items-center ${!isEven ? "md:[&>*:first-child]:order-2" : ""}`}
-                  data-testid={`screen-alacorn-${i}`}
+                  data-testid={`screen-alicorn-${i}`}
                 >
                   {/* Text */}
                   <div className={!isEven ? "md:order-1" : ""}>
@@ -298,7 +298,7 @@ export default function AlacornAdventure() {
         </div>
       </section>
 
-      {/* Alacorns */}
+      {/* Alicorns */}
       <section className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -310,7 +310,7 @@ export default function AlacornAdventure() {
           >
             <h2 className="text-4xl md:text-5xl font-serif font-bold mb-4">
               <span style={{ color: "hsl(270, 20%, 90%)" }}>Five</span>{" "}
-              <span className="gradient-text">Alacorns</span>
+              <span className="gradient-text">Alicorns</span>
             </h2>
             <p className="text-base max-w-lg mx-auto" style={{ color: "hsl(265, 15%, 55%)" }}>
               The whole Unicorn Valley family — each with their own horn, mane and
@@ -319,7 +319,7 @@ export default function AlacornAdventure() {
           </motion.div>
 
           <div className="flex flex-wrap justify-center gap-6">
-            {alacorns.map((a, i) => (
+            {alicorns.map((a, i) => (
               <motion.div
                 key={a.name}
                 initial={{ opacity: 0, y: 28 }}
@@ -327,9 +327,9 @@ export default function AlacornAdventure() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.07 }}
                 whileHover={{ y: -6 }}
-                className="app-card-alacorn rounded-2xl p-5 flex flex-col items-center"
+                className="app-card-alicorn rounded-2xl p-5 flex flex-col items-center"
                 style={{ width: 190 }}
-                data-testid={`card-alacorn-${a.name.toLowerCase()}`}
+                data-testid={`card-alicorn-${a.name.toLowerCase()}`}
               >
                 <div className="h-28 flex items-center justify-center mb-3">
                   <img
@@ -406,16 +406,16 @@ export default function AlacornAdventure() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="max-w-2xl mx-auto text-center app-card-alacorn rounded-3xl p-12"
+          className="max-w-2xl mx-auto text-center app-card-alicorn rounded-3xl p-12"
         >
           <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4" style={{ color: "hsl(270, 20%, 92%)" }}>
             Ready for takeoff
           </h2>
           <p className="text-base mb-8 max-w-md mx-auto" style={{ color: "hsl(265, 15%, 60%)" }}>
-            Alacorn Adventure is coming to iPhone. No ads, no purchases, nothing
+            Alicorn Adventure is coming to iPhone. No ads, no purchases, nothing
             to sign up for — just flying.
           </p>
-          <Link href="/alacorn-adventure/privacy" data-testid="link-alacorn-privacy">
+          <Link href="/alicorn-adventure/privacy" data-testid="link-alicorn-privacy">
             <motion.span
               whileHover={{ x: 4 }}
               className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer"

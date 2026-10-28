@@ -19,20 +19,20 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function AlacornPrivacy() {
+export default function AlicornPrivacy() {
   return (
     <div className="magic-bg min-h-screen">
       <Header />
 
       <section className="px-6 pt-32 pb-24">
         <div className="max-w-2xl mx-auto">
-          <Link href="/alacorn-adventure" data-testid="link-privacy-back">
+          <Link href="/alicorn-adventure" data-testid="link-privacy-back">
             <motion.span
               whileHover={{ x: -4 }}
               className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer mb-8"
               style={{ color: GOLD }}
             >
-              <ArrowLeft size={14} /> Alacorn Adventure
+              <ArrowLeft size={14} /> Alicorn Adventure
             </motion.span>
           </Link>
 
@@ -40,11 +40,11 @@ export default function AlacornPrivacy() {
             Privacy Policy
           </h1>
           <p className="text-sm mb-10" style={{ color: "hsl(265, 15%, 52%)" }}>
-            Unicorn Valley: Alacorn Adventure · Last updated August 6, 2026
+            Unicorn Valley: Alicorn Adventure · Last updated August 6, 2026
           </p>
 
           <div
-            className="app-card-alacorn rounded-2xl p-7 mb-10 text-lg font-serif"
+            className="app-card-alicorn rounded-2xl p-7 mb-10 text-lg font-serif"
             style={{ color: "hsl(38, 45%, 88%)" }}
           >
             We do not collect, store, transmit, or share any personal
@@ -53,7 +53,7 @@ export default function AlacornPrivacy() {
 
           <Section title="Built for children">
             <p>
-              Unicorn Valley: Alacorn Adventure is designed for children and
+              Unicorn Valley: Alicorn Adventure is designed for children and
               their families. Protecting privacy — especially children's — is our
               highest priority.
             </p>

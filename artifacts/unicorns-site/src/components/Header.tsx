@@ -37,9 +37,9 @@ export default function Header() {
 
   const navLinks = [
     { href: "/", label: "Home" },
-    { href: "/unicorn-magic", label: "Unicorn Magic" },
+    { href: "/unicorn-magic", label: "Unicorn Magic Playhouse" },
     { href: "/unicorn-valley", label: "Unicorn Valley" },
-    { href: "/alacorn-adventure", label: "Alacorn Adventure" },
+    { href: "/alicorn-adventure", label: "Alicorn Adventure" },
   ];
 
   return (
