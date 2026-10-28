@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 const PRIVACY_PATHS = [
   "/unicorn-magic/privacy",
   "/unicorn-valley/privacy",
-  "/alacorn-adventure/privacy",
+  "/alicorn-adventure/privacy",
 ];
 
 export default function Footer() {
@@ -73,12 +73,12 @@ export default function Footer() {
                 Unicorn Valley
               </span>
             </Link>
-            <Link href="/alacorn-adventure" data-testid="link-footer-alacorn-adventure">
+            <Link href="/alicorn-adventure" data-testid="link-footer-alicorn-adventure">
               <span className="text-sm cursor-pointer transition-colors" style={{ color: "hsl(265, 15%, 55%)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(38, 90%, 68%)")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(265, 15%, 55%)")}
               >
-                Alacorn Adventure
+                Alicorn Adventure
               </span>
             </Link>
             <Link href={privacyPath} data-testid="link-footer-privacy">

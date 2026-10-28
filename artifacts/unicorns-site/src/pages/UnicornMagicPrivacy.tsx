@@ -44,7 +44,7 @@ export default function UnicornMagicPrivacy() {
           </p>
 
           <div
-            className="app-card-alacorn rounded-2xl p-7 mb-10 text-lg font-serif"
+            className="app-card-alicorn rounded-2xl p-7 mb-10 text-lg font-serif"
             style={{ color: "hsl(38, 45%, 88%)" }}
           >
             We do not collect, store, transmit, or share any personal

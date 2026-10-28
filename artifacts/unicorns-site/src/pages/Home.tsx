@@ -110,7 +110,7 @@ export default function Home() {
             className="text-lg md:text-xl leading-relaxed mb-10 max-w-xl mx-auto"
             style={{ color: "hsl(265, 15%, 62%)" }}
           >
-            Unicorn Magic Playhouse is a magical activity app for kids — dress unicorns, feed them, and play together. Unicorn Valley is a free-play world where kids drag five unicorn friends across six hand-painted scenes. And in Alacorn Adventure, those same friends grow wings and fly.
+            Unicorn Magic Playhouse is a magical activity app for kids — dress unicorns, feed them, and play together. Unicorn Valley is a free-play world where kids drag five unicorn friends across six hand-painted scenes. And in Alicorn Adventure, those same friends grow wings and fly.
           </motion.p>
 
           <motion.div
@@ -147,7 +147,7 @@ export default function Home() {
                 Unicorn Valley <ArrowRight size={15} />
               </motion.span>
             </Link>
-            <Link href="/alacorn-adventure" data-testid="link-hero-alacorn-adventure">
+            <Link href="/alicorn-adventure" data-testid="link-hero-alicorn-adventure">
               <motion.span
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
@@ -158,7 +158,7 @@ export default function Home() {
                   boxShadow: "0 8px 32px rgba(240, 180, 41, 0.25)",
                 }}
               >
-                Alacorn Adventure <ArrowRight size={15} />
+                Alicorn Adventure <ArrowRight size={15} />
               </motion.span>
             </Link>
           </motion.div>
@@ -297,15 +297,15 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* Alacorn Adventure Card */}
+            {/* Alicorn Adventure Card */}
             <motion.div
               initial={{ opacity: 0, y: 32 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.3 }}
               whileHover={{ y: -6, transition: { duration: 0.2 } }}
-              className="app-card-alacorn rounded-2xl p-8 flex flex-col"
-              data-testid="card-alacorn-adventure"
+              className="app-card-alicorn rounded-2xl p-8 flex flex-col"
+              data-testid="card-alicorn-adventure"
             >
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
@@ -327,7 +327,7 @@ export default function Home() {
               </div>
 
               <h3 className="text-2xl font-serif font-semibold mb-3" style={{ color: "hsl(38, 40%, 92%)" }}>
-                Alacorn Adventure
+                Alicorn Adventure
               </h3>
               <p className="text-sm leading-relaxed mb-6 flex-grow" style={{ color: "hsl(265, 15%, 60%)" }}>
                 Pick one of five winged unicorns and fly through five magical worlds — a rainbow beach, a crystal city, a garden valley, an enchanted forest and outer space — collecting glowing crystals against the clock. One finger to steer.
@@ -337,11 +337,11 @@ export default function Home() {
                 <span
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold w-fit"
                   style={{ background: "rgba(240, 180, 41, 0.14)", color: "hsl(38, 85%, 72%)", border: "1px solid rgba(240, 180, 41, 0.28)" }}
-                  data-testid="badge-alacorn-coming-soon"
+                  data-testid="badge-alicorn-coming-soon"
                 >
                   Coming soon to the App Store
                 </span>
-                <Link href="/alacorn-adventure" data-testid="link-alacorn-learn-more">
+                <Link href="/alicorn-adventure" data-testid="link-alicorn-learn-more">
                   <motion.span
                     whileHover={{ x: 4 }}
                     className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer"

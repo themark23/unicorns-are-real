@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,8 +6,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import UnicornMagic from "@/pages/UnicornMagic";
 import UnicornValley from "@/pages/UnicornValley";
-import AlacornAdventure from "@/pages/AlacornAdventure";
-import AlacornPrivacy from "@/pages/AlacornPrivacy";
+import AlicornAdventure from "@/pages/AlicornAdventure";
+import AlicornPrivacy from "@/pages/AlicornPrivacy";
 import UnicornMagicPrivacy from "@/pages/UnicornMagicPrivacy";
 import UnicornValleyPrivacy from "@/pages/UnicornValleyPrivacy";
 
@@ -21,8 +21,15 @@ function Router() {
       <Route path="/unicorn-magic/privacy" component={UnicornMagicPrivacy} />
       <Route path="/unicorn-valley" component={UnicornValley} />
       <Route path="/unicorn-valley/privacy" component={UnicornValleyPrivacy} />
-      <Route path="/alacorn-adventure" component={AlacornAdventure} />
-      <Route path="/alacorn-adventure/privacy" component={AlacornPrivacy} />
+      <Route path="/alicorn-adventure" component={AlicornAdventure} />
+      <Route path="/alicorn-adventure/privacy" component={AlicornPrivacy} />
+      {/* The slug was misspelled "alacorn" at first; keep those links working. */}
+      <Route path="/alacorn-adventure">
+        <Redirect to="/alicorn-adventure" />
+      </Route>
+      <Route path="/alacorn-adventure/privacy">
+        <Redirect to="/alicorn-adventure/privacy" />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

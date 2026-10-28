@@ -39,7 +39,7 @@ export default function Header() {
     { href: "/", label: "Home" },
     { href: "/unicorn-magic", label: "Unicorn Magic Playhouse" },
     { href: "/unicorn-valley", label: "Unicorn Valley" },
-    { href: "/alacorn-adventure", label: "Alacorn Adventure" },
+    { href: "/alicorn-adventure", label: "Alicorn Adventure" },
   ];
 
   return (
