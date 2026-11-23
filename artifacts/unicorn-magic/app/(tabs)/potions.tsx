@@ -38,11 +38,25 @@ const BOTTLE_PATH     = 'M 34,22 L 34,46 Q 12,58 12,78 L 12,140 Q 12,158 50,158 
 /* Layout constants for the drop animation */
 const BOTTLE_AREA_H  = 195;   // height of the bottle zone above the emoji row
 const EMOJI_ROW_H    = 74;    // height of the emoji tap row
-const EMOJI_STRIDE   = 66;    // center-to-center distance between emoji chips
 // The bottle cork top is at approximately y=14 from the top of brewZone
 // The emoji row centre is at BOTTLE_AREA_H + EMOJI_ROW_H/2 from the top
 // So the fly distance is: (BOTTLE_AREA_H + EMOJI_ROW_H/2) - 14 ≈ 218
 const FLY_DIST_Y     = BOTTLE_AREA_H + EMOJI_ROW_H / 2 - 14;
+
+/* Ingredient chips always sit on a single row. Most recipes have six, which at
+ * the full 54pt needs 364pt — wider than the ~326pt a card gets on a normal
+ * iPhone. The sixth chip used to wrap out of the fixed-height row, where the
+ * list below it swallowed the tap and collapsed the whole recipe. So the chips
+ * shrink to fit instead; 40pt is the floor that still suits small fingers. */
+const CHIP_MAX = 54;
+const CHIP_MIN = 40;
+const CHIP_GAP = 8;
+
+function chipSizeFor(rowWidth: number, count: number): number {
+  if (rowWidth <= 0 || count <= 0) return CHIP_MAX;
+  const fits = Math.floor((rowWidth - CHIP_GAP * (count - 1)) / count);
+  return Math.max(CHIP_MIN, Math.min(CHIP_MAX, fits));
+}
 
 /* ── BrewingCard ──────────────────────────────────────────────── */
 function BrewingCard({ potion }: { potion: MagicPotion }) {
@@ -51,6 +65,7 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
   const [brewed,       setBrewed]       = useState<Set<number>>(new Set());
   const [showComplete, setShowComplete] = useState(false);
   const [flyEmoji,     setFlyEmoji]     = useState<string | null>(null);
+  const [rowWidth,     setRowWidth]     = useState(0);
 
   const fillAnim  = useRef(new Animated.Value(0)).current;
   const burstAnim = useRef(new Animated.Value(0)).current;
@@ -64,6 +79,9 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
 
   const total      = potion.ingredients.length;
   const isComplete = brewed.size === total;
+
+  const chipSize   = chipSizeFor(rowWidth, total);
+  const chipStride = chipSize + CHIP_GAP;
 
   const bubbleAnims = useRef([
     new Animated.Value(0.0),
@@ -108,7 +126,7 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
     if (brewed.has(index)) return;
 
     /* Position flying emoji at this chip's x offset from centre */
-    const startX = (index - (total - 1) / 2) * EMOJI_STRIDE;
+    const startX = (index - (total - 1) / 2) * chipStride;
     flyX.setValue(startX);
     flyY.setValue(FLY_DIST_Y);
     flyScl.setValue(1.2);
@@ -264,7 +282,10 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
         </View>
 
         {/* ── Emoji tap row ── */}
-        <View style={styles.emojiRow}>
+        <View
+          style={styles.emojiRow}
+          onLayout={(e) => setRowWidth(e.nativeEvent.layout.width)}
+        >
           {potion.ingredientEmojis.map((emoji, i) => {
             const done = brewed.has(i);
             const stepColor = potion.ingredientColors[i] ?? potion.accentColor;
@@ -276,6 +297,7 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
                 style={({ pressed }) => [
                   styles.emojiChip,
                   {
+                    width: chipSize, height: chipSize, borderRadius: chipSize / 2,
                     backgroundColor: done ? stepColor + '28' : '#fff',
                     borderColor:     done ? stepColor        : colors.border,
                     transform: [{ scale: pressed ? 0.88 : 1 }],
@@ -283,10 +305,15 @@ function BrewingCard({ potion }: { potion: MagicPotion }) {
                   },
                 ]}
               >
-                <Text style={styles.emojiChipText}>{emoji}</Text>
+                <Text style={[styles.emojiChipText, { fontSize: Math.round(chipSize * 0.56) }]}>
+                  {emoji}
+                </Text>
                 {done && (
-                  <View style={[styles.emojiDoneOverlay, { backgroundColor: stepColor + 'CC' }]}>
-                    <Text style={styles.emojiDoneTick}>✓</Text>
+                  <View style={[
+                    styles.emojiDoneOverlay,
+                    { borderRadius: chipSize / 2, backgroundColor: stepColor + 'CC' },
+                  ]}>
+                    <Text style={[styles.emojiDoneTick, { fontSize: Math.round(chipSize * 0.37) }]}>✓</Text>
                   </View>
                 )}
               </Pressable>
@@ -402,17 +429,24 @@ export default function PotionsScreen() {
         {MAGIC_POTIONS.map((potion) => {
           const isExpanded = expandedId === potion.id;
           return (
-            <Pressable
+            <View
               key={potion.id}
-              onPress={() => {
-                setExpandedId((prev) => (prev === potion.id ? null : potion.id));
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-              style={({ pressed }) => [
+              style={[
                 styles.potionCard,
-                { borderColor: isExpanded ? potion.accentColor : colors.border, opacity: pressed ? 0.95 : 1 },
+                { borderColor: isExpanded ? potion.accentColor : colors.border },
               ]}
             >
+              {/* Only the header toggles the card. While a recipe is open the
+                  brewing area below must not collapse it: a spent ingredient
+                  chip is disabled and so lets the touch through, which used to
+                  shut the whole recipe on the last tap. */}
+              <Pressable
+                onPress={() => {
+                  setExpandedId((prev) => (prev === potion.id ? null : potion.id));
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={({ pressed }) => [{ opacity: pressed ? 0.95 : 1 }]}
+              >
               {/* ── Card top ── */}
               <View style={styles.cardTop}>
                 {potion.image ? (
@@ -449,8 +483,10 @@ export default function PotionsScreen() {
                 </View>
               </View>
 
+              </Pressable>
+
               {isExpanded && <BrewingCard potion={potion} />}
-            </Pressable>
+            </View>
           );
         })}
       </ScrollView>
@@ -514,25 +550,27 @@ const styles = StyleSheet.create({
   /* Emoji tap row */
   emojiRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    // Never wrap: a chip pushed onto a second line falls outside this row's
+    // fixed height, where the ingredient list below it takes the tap instead.
+    flexWrap: 'nowrap',
+    alignSelf: 'stretch',
     justifyContent: 'center',
-    gap: 8,
+    gap: CHIP_GAP,
     height: EMOJI_ROW_H,
     alignItems: 'center',
-    paddingHorizontal: 4,
   },
   emojiChip: {
-    width: 54, height: 54, borderRadius: 27,
+    // Size, radius and font come from chipSizeFor() at render time.
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5,
     position: 'relative',
   },
-  emojiChipText: { fontSize: 30 },
+  emojiChipText: {},
   emojiDoneOverlay: {
-    position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 27,
+    position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
     alignItems: 'center', justifyContent: 'center',
   },
-  emojiDoneTick: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  emojiDoneTick: { color: '#fff', fontWeight: '700' },
 
   tapHint: {
     fontSize: 12, fontFamily: 'Inter_400Regular',

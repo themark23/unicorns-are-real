@@ -1,4 +1,5 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
@@ -18,7 +19,12 @@ export function useNarration() {
     subRef.current = null;
     const p = playerRef.current;
     playerRef.current = null;
-    if (p) { try { p.remove(); } catch {} }
+    // Pause before releasing: remove() alone lets the outgoing clip run on, so
+    // tapping a second Listen used to leave two voices reading over each other.
+    if (p) {
+      try { p.pause(); } catch {}
+      try { p.remove(); } catch {}
+    }
   }, []);
 
   const stop = useCallback(() => {
@@ -49,7 +55,16 @@ export function useNarration() {
     }
   }, [playingId, stop, teardown]);
 
-  // Never let a story keep reading after the child has left the tab.
+  // Never let a story keep reading after the child has left the tab. Tab
+  // screens stay mounted when you switch away, so unmount cleanup alone never
+  // fired — the blur callback is what actually stops it.
+  useFocusEffect(
+    useCallback(() => () => {
+      teardown();
+      setPlayingId(null);
+    }, [teardown])
+  );
+
   useEffect(() => () => { teardown(); }, [teardown]);
 
   return { playingId, toggle, stop };
