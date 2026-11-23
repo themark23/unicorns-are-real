@@ -21,10 +21,6 @@ export const UNICORN_FACTS: UnicornFact[] = [
     text: "Unicorns with both a horn AND wings are called 'alicorns' — which means they can gallop on the ground AND soar through the sky!",
   },
   {
-    id: 'f6',
-    text: "A narwhal — a real ocean animal — is sometimes called the 'unicorn of the sea' because it has a long, beautiful spiraling tusk!",
-  },
-  {
     id: 'f8',
     text: "Unicorn horns were said to glow silver in the moonlight and turn brilliant golden when touched by sunlight.",
   },
@@ -47,9 +43,5 @@ export const UNICORN_FACTS: UnicornFact[] = [
   {
     id: 'f13',
     text: "The rainbow colors often seen in unicorn manes are said to appear when magical starlight shines through morning dew drops!",
-  },
-  {
-    id: 'f14',
-    text: "Unicorns are believed to sleep on fluffy clouds made of cotton candy and wake up to drink sparkling water from rainbow waterfalls!",
   },
 ];
