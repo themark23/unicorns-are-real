@@ -3,6 +3,7 @@ import { Asset } from 'expo-asset';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as MediaLibrary from 'expo-media-library';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -19,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 
+import ParentalGate from '@/components/ParentalGate';
 import { useColors } from '@/hooks/useColors';
 
 /* ─── Coloring pages ──────────────────────────────────────────────────────── */
@@ -58,6 +60,7 @@ const BRUSHES = [3, 6, 12, 20];
 const BRUSH_NAMES = ['Extra small', 'Small', 'Medium', 'Large'];
 
 type DrawMode = 'brush' | 'fill';
+type ToastIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 /* ─── Saved artwork ────────────────────────────────────────────────────────
    Each page's canvas is written to the document directory as a PNG, so a
@@ -330,13 +333,23 @@ export default function ColoringScreen() {
   const canvasReady = useRef(false);
 
   const toastOpacity = useRef(new Animated.Value(0)).current;
-  const showToast = useCallback(() => {
-    Animated.sequence([
-      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(1200),
-      Animated.timing(toastOpacity, { toValue: 0, duration: 320, useNativeDriver: true }),
-    ]).start();
-  }, [toastOpacity]);
+  const [toastMsg, setToastMsg] = useState<{ text: string; icon: ToastIcon }>({
+    text: 'Saved to Photos!',
+    icon: 'star-four-points',
+  });
+  /* `hold` is longer for the messages that actually have to be read, rather
+     than the cheerful one that just confirms what the child expected. */
+  const showToast = useCallback(
+    (text: string, icon: ToastIcon = 'star-four-points', hold = 1200) => {
+      setToastMsg({ text, icon });
+      Animated.sequence([
+        Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.delay(hold),
+        Animated.timing(toastOpacity, { toValue: 0, duration: 320, useNativeDriver: true }),
+      ]).start();
+    },
+    [toastOpacity]
+  );
 
   /* ── Load image for current page (saved artwork wins over blank line art) ── */
   useEffect(() => {
@@ -394,10 +407,43 @@ export default function ColoringScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  /* ── Save ── */
+  /* ── Save to Photos ──
+     The export sits behind a parental gate. Writing to the photo library needs
+     a system permission, and Apple requires Kids Category apps to put a gate in
+     front of a permission request. The gate guards only the export: the drawing
+     is kept inside the app either way, by the autosave above. */
+  const [gateOpen, setGateOpen] = useState(false);
+
   const handleSave = useCallback(() => {
-    webViewRef.current?.injectJavaScript("requestSave('button');true;");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setGateOpen(true);
   }, []);
+
+  const handleGatePass = useCallback(() => {
+    setGateOpen(false);
+    if (!canvasReady.current) {
+      showToast('Nothing to save yet', 'information', 2200);
+      return;
+    }
+    webViewRef.current?.injectJavaScript("requestSave('photo');true;");
+  }, [showToast]);
+
+  /* Hand the PNG that was just written to disk over to the photo library. */
+  const exportToPhotos = useCallback(async (idx: number) => {
+    try {
+      /* writeOnly — the app adds a picture and never reads the library back. */
+      const perm = await MediaLibrary.requestPermissionsAsync(true);
+      if (!perm.granted) {
+        showToast('Photos is turned off — the picture is still here', 'information', 2800);
+        return;
+      }
+      await MediaLibrary.saveToLibraryAsync(artFile(idx).uri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      showToast('Saved to Photos!');
+    } catch {
+      showToast("Couldn't save to Photos — the picture is still here", 'information', 2800);
+    }
+  }, [showToast]);
 
   /* Move to the page the child asked for, once the old one has been banked. */
   const advancePending = useCallback(() => {
@@ -425,6 +471,7 @@ export default function ColoringScreen() {
        saved over the line art would wipe the page permanently — but still let
        a page turn through so the arrows never feel stuck. */
     if (msg.startsWith('skip:')) {
+      if (msg === 'skip:photo') showToast('Nothing to save yet', 'information', 2200);
       advancePending();
       return;
     }
@@ -440,14 +487,14 @@ export default function ColoringScreen() {
         /* Saving is best-effort; never interrupt a child mid-drawing. */
         saved = false;
       }
-      /* Only claim it saved when it did. */
-      if (tag === 'button' && saved) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showToast();
+      /* Only go to Photos with a file that really made it to disk. */
+      if (tag === 'photo') {
+        if (saved) void exportToPhotos(pageIdx);
+        else showToast("Couldn't save the picture — please try again", 'information', 2800);
       }
       advancePending();
     }
-  }, [advancePending, pageIdx, showToast]);
+  }, [advancePending, exportToPhotos, pageIdx, showToast]);
 
   const page      = PAGES[pageIdx];
   const brushSize = BRUSHES[brushIdx];
@@ -488,7 +535,7 @@ export default function ColoringScreen() {
           <Pressable
             onPress={handleSave}
             accessibilityRole="button"
-            accessibilityLabel="Save your artwork"
+            accessibilityLabel="Save your artwork to Photos"
             style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.midPurple, opacity: pressed ? 0.6 : 1 }]}
           >
             <MaterialCommunityIcons name="content-save" size={15} color={colors.midPurple} />
@@ -645,9 +692,15 @@ export default function ColoringScreen() {
 
       {/* ── Saved toast ── */}
       <Animated.View pointerEvents="none" style={[styles.toast, { opacity: toastOpacity }]}>
-        <MaterialCommunityIcons name="star-four-points" size={15} color="#fff" />
-        <Text style={styles.toastText}>Artwork Saved!</Text>
+        <MaterialCommunityIcons name={toastMsg.icon} size={15} color="#fff" />
+        <Text style={styles.toastText}>{toastMsg.text}</Text>
       </Animated.View>
+
+      <ParentalGate
+        visible={gateOpen}
+        onPass={handleGatePass}
+        onCancel={() => setGateOpen(false)}
+      />
     </View>
   );
 }
@@ -720,6 +773,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 96,
     alignSelf: 'center',
+    maxWidth: '92%',
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: '#534AB7',
     paddingHorizontal: 22, paddingVertical: 12,
@@ -731,7 +785,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   toastText: {
-    color: '#fff', fontSize: 15,
+    color: '#fff', fontSize: 15, flexShrink: 1, textAlign: 'center',
     fontWeight: '700', fontFamily: 'Inter_700Bold',
   },
 });
