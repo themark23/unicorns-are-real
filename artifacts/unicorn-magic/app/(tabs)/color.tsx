@@ -3,6 +3,7 @@ import { Asset } from 'expo-asset';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -142,9 +143,18 @@ function pushHistory(){
   if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:1');
 }
 
+/* The line art is drawn by an Image() that is never in the document, so it
+   does NOT hold up the page load event. Until onload has run the canvas is
+   blank white, and handing that back would overwrite the page with nothing. */
+var ready=false;
 img.onload=function(){
   ctx.globalAlpha=1;
   ctx.drawImage(img,0,0,SZ,SZ);
+  ready=true;
+  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('ready');
+};
+img.onerror=function(){
+  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('loadfail');
 };
 img.src='${dataUrl}';
 
@@ -289,6 +299,7 @@ function clearCanvas(){
 /* Hand the finished canvas back to RN so it can be written to disk. */
 function requestSave(tag){
   if(!window.ReactNativeWebView)return;
+  if(!ready){window.ReactNativeWebView.postMessage('skip:'+tag);return;}
   window.ReactNativeWebView.postMessage('art:'+tag+':'+canvas.toDataURL('image/png'));
 }
 </script>
@@ -358,12 +369,16 @@ export default function ColoringScreen() {
   const goNext = () => { if (pageIdx < PAGES.length - 1) goToPage(pageIdx + 1); };
   const goPrev = () => { if (pageIdx > 0) goToPage(pageIdx - 1); };
 
-  /* Bank the drawing when the child navigates away from the tab entirely. */
-  useEffect(() => () => {
-    if (canvasReady.current) {
-      webViewRef.current?.injectJavaScript("requestSave('leave');true;");
-    }
-  }, []);
+  /* Bank the drawing when the child navigates away from the tab entirely.
+     Tab screens stay mounted when you switch away, so an unmount cleanup never
+     ran — the blur callback is what actually fires. */
+  useFocusEffect(
+    useCallback(() => () => {
+      if (canvasReady.current) {
+        webViewRef.current?.injectJavaScript("requestSave('leave');true;");
+      }
+    }, [])
+  );
 
   /* ── Undo ── */
   const handleUndo = () => {
@@ -384,6 +399,14 @@ export default function ColoringScreen() {
     webViewRef.current?.injectJavaScript("requestSave('button');true;");
   }, []);
 
+  /* Move to the page the child asked for, once the old one has been banked. */
+  const advancePending = useCallback(() => {
+    if (pendingPage.current === null) return;
+    const next = pendingPage.current;
+    pendingPage.current = null;
+    setPageIdx(next);
+  }, []);
+
   /* ── Message from WebView ── */
   const onMessage = useCallback((event: { nativeEvent: { data: string } }) => {
     const msg = event.nativeEvent.data;
@@ -394,26 +417,37 @@ export default function ColoringScreen() {
     if (msg === 'canUndo:1') { setCanUndo(true);  return; }
     if (msg === 'canUndo:0') { setCanUndo(false); return; }
 
+    /* The canvas only counts as ready once the line art is actually on it. */
+    if (msg === 'ready')    { canvasReady.current = true;  return; }
+    if (msg === 'loadfail') { canvasReady.current = false; return; }
+
+    /* Asked to save before the page had drawn. Write nothing — a blank canvas
+       saved over the line art would wipe the page permanently — but still let
+       a page turn through so the arrows never feel stuck. */
+    if (msg.startsWith('skip:')) {
+      advancePending();
+      return;
+    }
+
     if (msg.startsWith('art:')) {
       const sep = msg.indexOf(':', 4);
       const tag = msg.slice(4, sep);
       const dataUrl = msg.slice(sep + 1);
+      let saved = true;
       try {
         writeArt(pageIdx, dataUrl);
       } catch {
         /* Saving is best-effort; never interrupt a child mid-drawing. */
+        saved = false;
       }
-      if (tag === 'button') {
+      /* Only claim it saved when it did. */
+      if (tag === 'button' && saved) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         showToast();
       }
-      if (pendingPage.current !== null) {
-        const next = pendingPage.current;
-        pendingPage.current = null;
-        setPageIdx(next);
-      }
+      advancePending();
     }
-  }, [pageIdx, showToast]);
+  }, [advancePending, pageIdx, showToast]);
 
   const page      = PAGES[pageIdx];
   const brushSize = BRUSHES[brushIdx];
@@ -584,7 +618,6 @@ export default function ColoringScreen() {
             scrollEnabled={false}
             bounces={false}
             onLoad={() => {
-              canvasReady.current = true;
               webViewRef.current?.injectJavaScript(
                 `updateSettings('${selColor}','${mode}',${BRUSHES[brushIdx]});true;`
               );
