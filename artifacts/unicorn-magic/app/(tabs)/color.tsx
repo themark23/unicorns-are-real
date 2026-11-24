@@ -3,6 +3,8 @@ import { Asset } from 'expo-asset';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as MediaLibrary from 'expo-media-library';
+import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 
+import ParentalGate from '@/components/ParentalGate';
 import { useColors } from '@/hooks/useColors';
 
 /* ─── Coloring pages ──────────────────────────────────────────────────────── */
@@ -57,6 +60,7 @@ const BRUSHES = [3, 6, 12, 20];
 const BRUSH_NAMES = ['Extra small', 'Small', 'Medium', 'Large'];
 
 type DrawMode = 'brush' | 'fill';
+type ToastIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 /* ─── Saved artwork ────────────────────────────────────────────────────────
    Each page's canvas is written to the document directory as a PNG, so a
@@ -142,9 +146,18 @@ function pushHistory(){
   if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:1');
 }
 
+/* The line art is drawn by an Image() that is never in the document, so it
+   does NOT hold up the page load event. Until onload has run the canvas is
+   blank white, and handing that back would overwrite the page with nothing. */
+var ready=false;
 img.onload=function(){
   ctx.globalAlpha=1;
   ctx.drawImage(img,0,0,SZ,SZ);
+  ready=true;
+  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('ready');
+};
+img.onerror=function(){
+  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('loadfail');
 };
 img.src='${dataUrl}';
 
@@ -289,6 +302,7 @@ function clearCanvas(){
 /* Hand the finished canvas back to RN so it can be written to disk. */
 function requestSave(tag){
   if(!window.ReactNativeWebView)return;
+  if(!ready){window.ReactNativeWebView.postMessage('skip:'+tag);return;}
   window.ReactNativeWebView.postMessage('art:'+tag+':'+canvas.toDataURL('image/png'));
 }
 </script>
@@ -319,13 +333,23 @@ export default function ColoringScreen() {
   const canvasReady = useRef(false);
 
   const toastOpacity = useRef(new Animated.Value(0)).current;
-  const showToast = useCallback(() => {
-    Animated.sequence([
-      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(1200),
-      Animated.timing(toastOpacity, { toValue: 0, duration: 320, useNativeDriver: true }),
-    ]).start();
-  }, [toastOpacity]);
+  const [toastMsg, setToastMsg] = useState<{ text: string; icon: ToastIcon }>({
+    text: 'Saved to Photos!',
+    icon: 'star-four-points',
+  });
+  /* `hold` is longer for the messages that actually have to be read, rather
+     than the cheerful one that just confirms what the child expected. */
+  const showToast = useCallback(
+    (text: string, icon: ToastIcon = 'star-four-points', hold = 1200) => {
+      setToastMsg({ text, icon });
+      Animated.sequence([
+        Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.delay(hold),
+        Animated.timing(toastOpacity, { toValue: 0, duration: 320, useNativeDriver: true }),
+      ]).start();
+    },
+    [toastOpacity]
+  );
 
   /* ── Load image for current page (saved artwork wins over blank line art) ── */
   useEffect(() => {
@@ -358,12 +382,16 @@ export default function ColoringScreen() {
   const goNext = () => { if (pageIdx < PAGES.length - 1) goToPage(pageIdx + 1); };
   const goPrev = () => { if (pageIdx > 0) goToPage(pageIdx - 1); };
 
-  /* Bank the drawing when the child navigates away from the tab entirely. */
-  useEffect(() => () => {
-    if (canvasReady.current) {
-      webViewRef.current?.injectJavaScript("requestSave('leave');true;");
-    }
-  }, []);
+  /* Bank the drawing when the child navigates away from the tab entirely.
+     Tab screens stay mounted when you switch away, so an unmount cleanup never
+     ran — the blur callback is what actually fires. */
+  useFocusEffect(
+    useCallback(() => () => {
+      if (canvasReady.current) {
+        webViewRef.current?.injectJavaScript("requestSave('leave');true;");
+      }
+    }, [])
+  );
 
   /* ── Undo ── */
   const handleUndo = () => {
@@ -379,9 +407,50 @@ export default function ColoringScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  /* ── Save ── */
+  /* ── Save to Photos ──
+     The export sits behind a parental gate. Writing to the photo library needs
+     a system permission, and Apple requires Kids Category apps to put a gate in
+     front of a permission request. The gate guards only the export: the drawing
+     is kept inside the app either way, by the autosave above. */
+  const [gateOpen, setGateOpen] = useState(false);
+
   const handleSave = useCallback(() => {
-    webViewRef.current?.injectJavaScript("requestSave('button');true;");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setGateOpen(true);
+  }, []);
+
+  const handleGatePass = useCallback(() => {
+    setGateOpen(false);
+    if (!canvasReady.current) {
+      showToast('Nothing to save yet', 'information', 2200);
+      return;
+    }
+    webViewRef.current?.injectJavaScript("requestSave('photo');true;");
+  }, [showToast]);
+
+  /* Hand the PNG that was just written to disk over to the photo library. */
+  const exportToPhotos = useCallback(async (idx: number) => {
+    try {
+      /* writeOnly — the app adds a picture and never reads the library back. */
+      const perm = await MediaLibrary.requestPermissionsAsync(true);
+      if (!perm.granted) {
+        showToast('Photos is turned off — the picture is still here', 'information', 2800);
+        return;
+      }
+      await MediaLibrary.saveToLibraryAsync(artFile(idx).uri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      showToast('Saved to Photos!');
+    } catch {
+      showToast("Couldn't save to Photos — the picture is still here", 'information', 2800);
+    }
+  }, [showToast]);
+
+  /* Move to the page the child asked for, once the old one has been banked. */
+  const advancePending = useCallback(() => {
+    if (pendingPage.current === null) return;
+    const next = pendingPage.current;
+    pendingPage.current = null;
+    setPageIdx(next);
   }, []);
 
   /* ── Message from WebView ── */
@@ -394,26 +463,38 @@ export default function ColoringScreen() {
     if (msg === 'canUndo:1') { setCanUndo(true);  return; }
     if (msg === 'canUndo:0') { setCanUndo(false); return; }
 
+    /* The canvas only counts as ready once the line art is actually on it. */
+    if (msg === 'ready')    { canvasReady.current = true;  return; }
+    if (msg === 'loadfail') { canvasReady.current = false; return; }
+
+    /* Asked to save before the page had drawn. Write nothing — a blank canvas
+       saved over the line art would wipe the page permanently — but still let
+       a page turn through so the arrows never feel stuck. */
+    if (msg.startsWith('skip:')) {
+      if (msg === 'skip:photo') showToast('Nothing to save yet', 'information', 2200);
+      advancePending();
+      return;
+    }
+
     if (msg.startsWith('art:')) {
       const sep = msg.indexOf(':', 4);
       const tag = msg.slice(4, sep);
       const dataUrl = msg.slice(sep + 1);
+      let saved = true;
       try {
         writeArt(pageIdx, dataUrl);
       } catch {
         /* Saving is best-effort; never interrupt a child mid-drawing. */
+        saved = false;
       }
-      if (tag === 'button') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showToast();
+      /* Only go to Photos with a file that really made it to disk. */
+      if (tag === 'photo') {
+        if (saved) void exportToPhotos(pageIdx);
+        else showToast("Couldn't save the picture — please try again", 'information', 2800);
       }
-      if (pendingPage.current !== null) {
-        const next = pendingPage.current;
-        pendingPage.current = null;
-        setPageIdx(next);
-      }
+      advancePending();
     }
-  }, [pageIdx, showToast]);
+  }, [advancePending, exportToPhotos, pageIdx, showToast]);
 
   const page      = PAGES[pageIdx];
   const brushSize = BRUSHES[brushIdx];
@@ -454,7 +535,7 @@ export default function ColoringScreen() {
           <Pressable
             onPress={handleSave}
             accessibilityRole="button"
-            accessibilityLabel="Save your artwork"
+            accessibilityLabel="Save your artwork to Photos"
             style={({ pressed }) => [styles.hdrBtn, { borderColor: colors.midPurple, opacity: pressed ? 0.6 : 1 }]}
           >
             <MaterialCommunityIcons name="content-save" size={15} color={colors.midPurple} />
@@ -584,7 +665,6 @@ export default function ColoringScreen() {
             scrollEnabled={false}
             bounces={false}
             onLoad={() => {
-              canvasReady.current = true;
               webViewRef.current?.injectJavaScript(
                 `updateSettings('${selColor}','${mode}',${BRUSHES[brushIdx]});true;`
               );
@@ -612,9 +692,15 @@ export default function ColoringScreen() {
 
       {/* ── Saved toast ── */}
       <Animated.View pointerEvents="none" style={[styles.toast, { opacity: toastOpacity }]}>
-        <MaterialCommunityIcons name="star-four-points" size={15} color="#fff" />
-        <Text style={styles.toastText}>Artwork Saved!</Text>
+        <MaterialCommunityIcons name={toastMsg.icon} size={15} color="#fff" />
+        <Text style={styles.toastText}>{toastMsg.text}</Text>
       </Animated.View>
+
+      <ParentalGate
+        visible={gateOpen}
+        onPass={handleGatePass}
+        onCancel={() => setGateOpen(false)}
+      />
     </View>
   );
 }
@@ -687,6 +773,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 96,
     alignSelf: 'center',
+    maxWidth: '92%',
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: '#534AB7',
     paddingHorizontal: 22, paddingVertical: 12,
@@ -698,7 +785,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   toastText: {
-    color: '#fff', fontSize: 15,
+    color: '#fff', fontSize: 15, flexShrink: 1, textAlign: 'center',
     fontWeight: '700', fontFamily: 'Inter_700Bold',
   },
 });

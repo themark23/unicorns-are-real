@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "net.unicornsarereal.unicornmagic",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -44,6 +44,16 @@
         {
           "microphonePermission": false,
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": false,
+          "savePhotosPermission": "Unicorn Magic saves your child's finished coloring page to Photos when a grown-up taps Save.",
+          "granularPermissions": [
+            "photo"
+          ]
         }
       ]
     ],
