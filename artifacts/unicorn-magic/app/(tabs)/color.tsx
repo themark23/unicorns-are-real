@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as MediaLibrary from 'expo-media-library';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -23,18 +23,38 @@ import WebView from 'react-native-webview';
 import ParentalGate from '@/components/ParentalGate';
 import { useColors } from '@/hooks/useColors';
 
-/* ─── Coloring pages ──────────────────────────────────────────────────────── */
-const PAGES = [
-  { src: require('../../assets/coloring_1.png'),  label: 'Rainbow Unicorn' },
-  { src: require('../../assets/coloring_2.png'),  label: 'Starry Night' },
-  { src: require('../../assets/coloring_3.png'),  label: 'Castle Dream' },
-  { src: require('../../assets/coloring_4.png'),  label: 'Enchanted Forest' },
-  { src: require('../../assets/coloring_5.png'),  label: 'Mountain Magic' },
-  { src: require('../../assets/coloring_6.png'),  label: 'Beach Gallop' },
-  { src: require('../../assets/coloring_7.png'),  label: 'Rainbow Bridge' },
-  { src: require('../../assets/coloring_8.png'),  label: 'Butterfly Meadow' },
-  { src: require('../../assets/coloring_9.png'),  label: 'Waterfall Magic' },
-  { src: require('../../assets/coloring_10.png'), label: 'Rainbow Hearts' },
+/* ─── Coloring pages ──────────────────────────────────────────────────────────
+   `barriers` are short invisible segments, [x1, y1, x2, y2] in the 800×800
+   page image, that close an opening in the outlines. They are never drawn —
+   the fill just treats them as lines. Each closes one specific leak: on
+   Mountain Magic, for example, the ear's outline stops ~10px short of the
+   mane, so without its barrier, filling the unicorn also filled the mountain
+   behind it. Found by mapping every region of every page and checking each
+   leak by eye. Pages with no leaks have none.
+
+   Left alone on purpose: on Waterfall Magic the pond's shore is only hinted
+   at, so water and ground are one area. Closing it would mean inventing a
+   shoreline the drawing doesn't have. */
+type Segment = [number, number, number, number];
+
+const PAGES: { src: number; label: string; barriers: Segment[] }[] = [
+  { src: require('../../assets/coloring_1.png'),  label: 'Rainbow Unicorn',
+    barriers: [[708, 477, 698, 472], [185, 494, 176, 492]] },
+  { src: require('../../assets/coloring_2.png'),  label: 'Starry Night', barriers: [] },
+  { src: require('../../assets/coloring_3.png'),  label: 'Castle Dream',
+    barriers: [
+      [303, 774, 294, 763], [333, 799, 333, 788], [244, 733, 244, 722],
+      [595, 799, 592, 783], [433, 509, 427, 494], [479, 405, 470, 405],
+    ] },
+  { src: require('../../assets/coloring_4.png'),  label: 'Enchanted Forest', barriers: [] },
+  { src: require('../../assets/coloring_5.png'),  label: 'Mountain Magic',
+    barriers: [[443, 238, 450, 251]] },
+  { src: require('../../assets/coloring_6.png'),  label: 'Beach Gallop', barriers: [] },
+  { src: require('../../assets/coloring_7.png'),  label: 'Rainbow Bridge', barriers: [] },
+  { src: require('../../assets/coloring_8.png'),  label: 'Butterfly Meadow', barriers: [] },
+  { src: require('../../assets/coloring_9.png'),  label: 'Waterfall Magic', barriers: [] },
+  { src: require('../../assets/coloring_10.png'), label: 'Rainbow Hearts',
+    barriers: [[314, 171, 314, 158], [221, 175, 208, 175]] },
 ];
 
 /* ─── Palette ─────────────────────────────────────────────────────────────── */
@@ -62,18 +82,37 @@ const BRUSH_NAMES = ['Extra small', 'Small', 'Medium', 'Large'];
 type DrawMode = 'brush' | 'fill';
 type ToastIcon = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-/* ─── Saved artwork ────────────────────────────────────────────────────────
-   Each page's canvas is written to the document directory as a PNG, so a
-   drawing survives page changes, tab changes and app restarts. Images are
-   far too large for AsyncStorage, hence the filesystem. */
+/* ─── Saved artwork ──────────────────────────────────────────────────────────
+   The canvas holds only the child's colour layer; the line art sits on top of
+   it and is never painted on (see buildHtml). The colour layer is saved as
+   paint-N.png in the document directory, so a drawing survives page changes,
+   tab changes and app restarts.
+
+   Builds up to 3 saved the flattened picture (colour + lines) as page-N.png.
+   That still works as a colour layer — the lines drawn over it land exactly on
+   the lines baked into it — so it is read once, then replaced on next save. */
 const ART_DIR = new Directory(Paths.document, 'coloring');
 
-function artFile(pageIdx: number): File {
+function paintFile(pageIdx: number): File {
+  return new File(ART_DIR, `paint-${pageIdx}.png`);
+}
+
+function legacyFile(pageIdx: number): File {
   return new File(ART_DIR, `page-${pageIdx}.png`);
+}
+
+/* The finished picture for Photos, colour layer with the lines over it. Lives
+   in the cache only long enough to hand to the photo library. */
+function exportFile(pageIdx: number): File {
+  return new File(Paths.cache, `unicorn-magic-coloring-${pageIdx + 1}.png`);
 }
 
 function ensureArtDir(): void {
   if (!ART_DIR.exists) ART_DIR.create({ intermediates: true, idempotent: true });
+}
+
+async function fileDataUrl(f: File): Promise<string> {
+  return `data:image/png;base64,${await f.base64()}`;
 }
 
 /* ─── Load image as base64 data URL ───────────────────────────────────────
@@ -82,84 +121,204 @@ function ensureArtDir(): void {
 async function loadBundledPage(module: number): Promise<string> {
   const asset = Asset.fromModule(module);
   await asset.downloadAsync();
-  const b64 = await new File(asset.localUri!).base64();
-  return `data:image/png;base64,${b64}`;
+  return fileDataUrl(new File(asset.localUri!));
 }
 
-/* Prefer the child's saved artwork; fall back to the blank line art. */
-async function loadPage(pageIdx: number): Promise<string> {
+/* What one page needs: its line art, and the child's colour layer if any. */
+type PageArt = { idx: number; lines: string; paint: string | null };
+
+async function loadPage(pageIdx: number): Promise<PageArt> {
   ensureArtDir();
-  const saved = artFile(pageIdx);
-  if (saved.exists) {
-    return `data:image/png;base64,${await saved.base64()}`;
+  const lines = await loadBundledPage(PAGES[pageIdx].src);
+  for (const f of [paintFile(pageIdx), legacyFile(pageIdx)]) {
+    if (f.exists) return { idx: pageIdx, lines, paint: await fileDataUrl(f) };
   }
-  return loadBundledPage(PAGES[pageIdx].src);
+  return { idx: pageIdx, lines, paint: null };
 }
 
-function writeArt(pageIdx: number, dataUrl: string): void {
-  ensureArtDir();
-  const f = artFile(pageIdx);
+function writePng(f: File, dataUrl: string): void {
   if (f.exists) f.delete();
   f.create();
   f.write(dataUrl.replace(/^data:image\/png;base64,/, ''), { encoding: 'base64' });
 }
 
-function deleteArt(pageIdx: number): void {
-  const f = artFile(pageIdx);
-  if (f.exists) f.delete();
+function writeArt(pageIdx: number, dataUrl: string): void {
+  ensureArtDir();
+  writePng(paintFile(pageIdx), dataUrl);
+  /* Drop the old flattened copy only once the new one is safely written. */
+  const legacy = legacyFile(pageIdx);
+  if (legacy.exists) legacy.delete();
 }
 
-/* ─── Build WebView HTML ──────────────────────────────────────────────────── */
-/* buildHtml only depends on the image data + viewport width.
-   Color / mode / brushSize are injected via updateSettings() so changing
-   them never causes a WebView reload that would wipe the painted canvas. */
-function buildHtml(dataUrl: string, vpWidth: number): string {
+function deleteArt(pageIdx: number): void {
+  for (const f of [paintFile(pageIdx), legacyFile(pageIdx)]) {
+    if (f.exists) f.delete();
+  }
+}
+
+/* ─── Build WebView HTML ────────────────────────────────────────────────────
+   Two layers. The <canvas> is the child's colour layer; the line art is an
+   <img> above it with mix-blend-mode:multiply, so the white of the drawing
+   lets the colour through and the black lines always stay crisp on top.
+   Nothing ever paints over a line, and the line art itself is never changed.
+
+   Filling uses a region map built once per page from the line art: every
+   pixel is assigned to the area it belongs to, and a fill recolours exactly
+   one area. This replaced a scanline flood fill that (1) missed whole strips
+   of a shape — a white bar left across the unicorn's muzzle — and (2) decided
+   what to fill from the *current* colours, so a dark fill became a new wall
+   and anything filled black could never be recoloured.
+
+   buildHtml depends only on the page. Colour / mode / brush size are injected
+   via updateSettings() so changing them never reloads the WebView. */
+function buildHtml(art: PageArt, barriers: Segment[], vpWidth: number): string {
   return /* html */`<!DOCTYPE html>
 <html><head>
 <meta name="viewport" content="width=${vpWidth},initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{width:100%;height:100%;overflow:hidden;background:#fff}
-  canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  #c,#lines{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+  #c{touch-action:none}
+  #lines{mix-blend-mode:multiply;pointer-events:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 </style>
 </head><body>
-<canvas id="c"></canvas>
+<canvas id="c"></canvas><img id="lines" alt="">
 <script>
+var SZ=800,N=SZ*SZ;
 var canvas=document.getElementById('c');
 var ctx=canvas.getContext('2d');
-var SZ=800;
 canvas.width=SZ;canvas.height=SZ;
+ctx.fillStyle='#fff';ctx.fillRect(0,0,SZ,SZ);
+var lines=document.getElementById('lines');
 
 /* defaults — overwritten immediately by updateSettings() injected onLoad */
 var color='#FF69B4';
 var mode='fill';
 var brushSize=6;
 var painting=false;
-var img=new Image();
 
-/* ── undo history (up to 10 snapshots) ── */
+function post(m){if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(m);}
+
+/* ── undo history (up to 10 snapshots of the colour layer) ── */
 var hist=[];
 var MAX_HIST=10;
-function pushHistory(){
-  hist.push(ctx.getImageData(0,0,SZ,SZ));
+function remember(snapshot){
+  hist.push(snapshot);
   if(hist.length>MAX_HIST)hist.shift();
-  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:1');
+  post('canUndo:1');
 }
 
-/* The line art is drawn by an Image() that is never in the document, so it
-   does NOT hold up the page load event. Until onload has run the canvas is
-   blank white, and handing that back would overwrite the page with nothing. */
-var ready=false;
-img.onload=function(){
-  ctx.globalAlpha=1;
-  ctx.drawImage(img,0,0,SZ,SZ);
+/* ── region map ──
+   WALL_LEVEL  a pixel darker than this is part of a line.
+   GAP_CLOSE   breaks in a line up to 2*GAP_CLOSE+1 px wide still count as
+               closed when deciding which areas connect, so a hairline gap
+               cannot let a fill escape. Wider ones are the page's barriers.
+   TAP_SLOP    a tap that lands on a line fills the nearest area, unless it
+               is deeper than this inside a solid black shape (a pupil). */
+var WALL_LEVEL=128,GAP_CLOSE=2,TAP_SLOP=6;
+var BARRIERS=${JSON.stringify(barriers)};
+var owner=null,wallDepth=null;
+
+function grow(m){
+  var out=new Uint8Array(m),p,x;
+  for(p=0;p<N;p++){
+    if(m[p])continue;
+    x=p%SZ;
+    if((x>0&&m[p-1])||(x<SZ-1&&m[p+1])||(p>=SZ&&m[p-SZ])||(p<N-SZ&&m[p+SZ]))out[p]=1;
+  }
+  return out;
+}
+
+function stamp(wall,s){
+  var x1=s[0],y1=s[1],x2=s[2],y2=s[3];
+  var n=Math.ceil(Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1)))*2+1;
+  for(var k=0;k<=n;k++){
+    var cx=x1+(x2-x1)*k/n,cy=y1+(y2-y1)*k/n;
+    for(var dy=-1;dy<=1;dy++)for(var dx=-1;dx<=1;dx++){
+      var x=Math.round(cx+dx),y=Math.round(cy+dy);
+      if(x>=0&&x<SZ&&y>=0&&y<SZ)wall[y*SZ+x]=1;
+    }
+  }
+}
+
+/* Breadth-first: hand each queued pixel's owner to unowned, unblocked
+   neighbours, in distance order. Returns the new end of the queue. */
+function spread(q,h,t,blocked,depth){
+  var c,x,n,k,id;
+  while(h<t){
+    c=q[h++];x=c%SZ;id=owner[c];
+    for(k=0;k<4;k++){
+      if(k===0){if(x===0)continue;n=c-1;}
+      else if(k===1){if(x===SZ-1)continue;n=c+1;}
+      else if(k===2){if(c<SZ)continue;n=c-SZ;}
+      else{if(c>=N-SZ)continue;n=c+SZ;}
+      if(owner[n]>=0||(blocked&&blocked[n]))continue;
+      owner[n]=id;
+      if(depth)depth[n]=depth[c]<255?depth[c]+1:255;
+      q[t++]=n;
+    }
+  }
+  return t;
+}
+
+function buildRegions(){
+  var tmp=document.createElement('canvas');tmp.width=SZ;tmp.height=SZ;
+  var tc=tmp.getContext('2d');
+  tc.fillStyle='#fff';tc.fillRect(0,0,SZ,SZ);
+  tc.drawImage(lines,0,0,SZ,SZ);
+  var px=tc.getImageData(0,0,SZ,SZ).data;
+  var wall=new Uint8Array(N),p,i,start;
+  for(p=0;p<N;p++)wall[p]=px[p*4]<WALL_LEVEL?1:0;
+  for(i=0;i<BARRIERS.length;i++)stamp(wall,BARRIERS[i]);
+  var closed=wall;
+  for(i=0;i<GAP_CLOSE;i++)closed=grow(closed);
+
+  owner=new Int32Array(N);for(p=0;p<N;p++)owner[p]=-1;
+  var q=new Int32Array(N),t=0,next=0;
+  /* 1. each open area of the gap-closed drawing is a region */
+  for(p=0;p<N;p++){
+    if(closed[p]||owner[p]>=0)continue;
+    owner[p]=next++;start=t;q[t++]=p;
+    t=spread(q,start,t,closed,null);
+  }
+  /* 2. corners, the band beside each line and narrow breaks join whichever
+        region they open into, nearest first, so a corner is never left white */
+  t=spread(q,0,t,wall,null);
+  /* 3. specks of open space no region reached become regions of their own */
+  for(p=0;p<N;p++){
+    if(wall[p]||owner[p]>=0)continue;
+    owner[p]=next++;start=t;q[t++]=p;
+    t=spread(q,start,t,wall,null);
+  }
+  /* 4. line pixels belong to the nearest region, so colour runs under the
+        lines and leaves no white fringe beside them */
+  wallDepth=new Uint8Array(N);t=0;
+  for(p=0;p<N;p++)if(owner[p]>=0)q[t++]=p;
+  spread(q,0,t,null,wallDepth);
+}
+
+/* ── loading: ready once the regions are built and any saved colour is on ── */
+var ready=false,linesReady=false,paintReady=${art.paint ? 'false' : 'true'},cleared=false;
+function maybeReady(){
+  if(ready||!linesReady||!paintReady)return;
   ready=true;
-  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('ready');
+  post('ready');
+}
+lines.onload=function(){
+  try{buildRegions();}catch(err){post('loadfail');return;}
+  linesReady=true;maybeReady();
 };
-img.onerror=function(){
-  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('loadfail');
+lines.onerror=function(){post('loadfail');};
+${art.paint ? `var saved=new Image();
+saved.onload=function(){
+  if(!cleared){ctx.globalAlpha=1;ctx.drawImage(saved,0,0,SZ,SZ);}
+  paintReady=true;maybeReady();
 };
-img.src='${dataUrl}';
+/* An unreadable saved copy must not lock the page: start it fresh. */
+saved.onerror=function(){paintReady=true;maybeReady();};
+saved.src='${art.paint}';` : ''}
+lines.src='${art.lines}';
 
 /* ── helpers ── */
 function hexToRgb(h){
@@ -170,97 +329,56 @@ function hexToRgb(h){
    Uses touches[0].clientX/Y relative to canvas bounding rect (CSS px). */
 function canvasPos(touch){
   var r=canvas.getBoundingClientRect();
-  var cx=(touch.clientX-r.left)*(SZ/r.width);
-  var cy=(touch.clientY-r.top)*(SZ/r.height);
-  return[cx,cy];
+  return[(touch.clientX-r.left)*(SZ/r.width),(touch.clientY-r.top)*(SZ/r.height)];
 }
 
-/* ── scanline flood fill ── */
-function floodFill(sx,sy){
-  sx=Math.round(sx);sy=Math.round(sy);
-  if(sx<0||sx>=SZ||sy<0||sy>=SZ)return;
-
-  var id=ctx.getImageData(0,0,SZ,SZ);
-  var d=id.data,w=SZ,h=SZ;
-  var si=(sy*w+sx)*4;
-  var sr=d[si],sg=d[si+1],sb=d[si+2];
-  var fc=hexToRgb(color),fr=fc[0],fg=fc[1],fb=fc[2];
-  if(sr===fr&&sg===fg&&sb===fb)return;
-  /* Protect outline: don't start a fill on a very dark pixel (line art).
-     Threshold on max-channel so dark-colored fills can still be re-colored. */
-  if(Math.max(sr,sg,sb)<80)return;
-
-  /* Absolute-brightness matching: fill any connected pixel that is not dark.
-     This prevents anti-aliased gray pixels inside a region from acting as
-     false interior barriers (which caused rainbow bands to fill only partly).
-     The dark outlines (max channel < 80) act as the true flood-fill walls. */
-  function match(i){
-    return Math.max(d[i],d[i+1],d[i+2])>=80;
+/* Recolour the whole region under (px,py). False if nothing changed, so a
+   tap that changes nothing adds no undo step. */
+function fillAt(px,py){
+  var x=Math.max(0,Math.min(SZ-1,Math.floor(px)));
+  var y=Math.max(0,Math.min(SZ-1,Math.floor(py)));
+  var p=y*SZ+x;
+  if(wallDepth[p]>TAP_SLOP)return false;
+  var id=owner[p],c=hexToRgb(color),r=c[0],g=c[1],b=c[2];
+  var before=ctx.getImageData(0,0,SZ,SZ),d=before.data,q,i,changed=false;
+  for(q=0;q<N;q++){
+    if(owner[q]!==id)continue;
+    i=q*4;
+    if(d[i]!==r||d[i+1]!==g||d[i+2]!==b){changed=true;break;}
   }
-  function paint(i){d[i]=fr;d[i+1]=fg;d[i+2]=fb;d[i+3]=255;}
-
-  var vis=new Uint8Array(w*h);
-  var stack=[];
-  function pushSpan(y,xl,xr,dy){stack.push(y,xl,xr,dy);}
-  pushSpan(sy,sx,sx,1);
-  pushSpan(sy+1,sx,sx,-1);
-
-  while(stack.length){
-    var dy=stack.pop(),xr=stack.pop(),xl=stack.pop(),y=stack.pop();
-    var ny=y+dy;
-    if(ny<0||ny>=h)continue;
-    var x=xl;
-    while(x>0&&!vis[ny*w+x-1]&&match((ny*w+x-1)*4))x--;
-    var x1=x;
-    while(x<=xr+1&&x<w){
-      var inside=(x<=xr)&&!vis[ny*w+x]&&match((ny*w+x)*4);
-      if(inside){
-        if(!vis[ny*w+x]){vis[ny*w+x]=1;paint((ny*w+x)*4);}
-        while(x+1<w&&!vis[ny*w+x+1]&&match((ny*w+x+1)*4)){
-          x++;vis[ny*w+x]=1;paint((ny*w+x)*4);
-        }
-        pushSpan(ny,x1,x,dy);
-        if(x>xr+1)pushSpan(ny,xr+1,x,-dy);
-      } else {
-        x1=x+1;
-      }
-      x++;
-    }
+  if(!changed)return false;
+  var after=ctx.getImageData(0,0,SZ,SZ),e=after.data;
+  for(q=0;q<N;q++){
+    if(owner[q]!==id)continue;
+    i=q*4;e[i]=r;e[i+1]=g;e[i+2]=b;e[i+3]=255;
   }
-  /* fill seed row */
-  var sx2=sx;
-  while(sx2>=0&&match((sy*w+sx2)*4)){
-    if(!vis[sy*w+sx2]){vis[sy*w+sx2]=1;paint((sy*w+sx2)*4);}
-    sx2--;
-  }
-  sx2=sx+1;
-  while(sx2<w&&match((sy*w+sx2)*4)){
-    if(!vis[sy*w+sx2]){vis[sy*w+sx2]=1;paint((sy*w+sx2)*4);}
-    sx2++;
-  }
-  ctx.putImageData(id,0,0);
+  ctx.putImageData(after,0,0);
+  remember(before);
+  return true;
 }
 
 /* ── touch events (iOS WKWebView — most reliable coordinate source) ── */
 canvas.addEventListener('touchstart',function(e){
   e.preventDefault();
-  var t=e.touches[0];
-  if(!t)return;
-  pushHistory();
-  var p=canvasPos(t);
+  /* One finger only: a second finger or a resting palm must not start
+     another fill or stroke. */
+  if(!ready||e.touches.length!==1)return;
+  var p=canvasPos(e.touches[0]);
   if(mode==='fill'){
-    floodFill(p[0],p[1]);
-    if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('haptic');
-  } else {
-    painting=true;
-    ctx.globalAlpha=0.9;
-    ctx.strokeStyle=color;
-    ctx.lineWidth=brushSize;
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctx.beginPath();
-    ctx.moveTo(p[0],p[1]);
+    if(fillAt(p[0],p[1]))post('haptic');
+    return;
   }
+  remember(ctx.getImageData(0,0,SZ,SZ));
+  painting=true;
+  ctx.globalAlpha=1;
+  ctx.fillStyle=color;
+  ctx.strokeStyle=color;
+  ctx.lineWidth=brushSize;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  /* a tap with the brush leaves a dot */
+  ctx.beginPath();ctx.arc(p[0],p[1],brushSize/2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.moveTo(p[0],p[1]);
 },{passive:false});
 
 canvas.addEventListener('touchmove',function(e){
@@ -277,7 +395,7 @@ canvas.addEventListener('touchmove',function(e){
 
 canvas.addEventListener('touchend',function(e){
   e.preventDefault();
-  painting=false;
+  if(e.touches.length===0)painting=false;
   ctx.beginPath();
 },{passive:false});
 
@@ -290,20 +408,32 @@ function updateSettings(c,m,s){color=c;mode=m;brushSize=s;}
 function undoCanvas(){
   if(!hist.length)return;
   ctx.putImageData(hist.pop(),0,0);
-  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:'+(hist.length>0?'1':'0'));
+  post('canUndo:'+(hist.length>0?'1':'0'));
 }
+/* Start the page over: white colour layer, lines untouched. Clearing is
+   itself undoable, so a stray tap on Clear costs nothing. */
 function clearCanvas(){
-  hist=[];
+  cleared=true;
+  remember(ctx.getImageData(0,0,SZ,SZ));
   ctx.globalAlpha=1;
-  ctx.clearRect(0,0,SZ,SZ);
-  ctx.drawImage(img,0,0,SZ,SZ);
-  if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('canUndo:0');
+  ctx.fillStyle='#fff';
+  ctx.fillRect(0,0,SZ,SZ);
 }
-/* Hand the finished canvas back to RN so it can be written to disk. */
+/* The finished picture: colour layer with the lines multiplied over it,
+   exactly what is on screen. */
+function composite(){
+  var t=document.createElement('canvas');t.width=SZ;t.height=SZ;
+  var c=t.getContext('2d');
+  c.drawImage(canvas,0,0);
+  c.globalCompositeOperation='multiply';
+  c.drawImage(lines,0,0,SZ,SZ);
+  return t.toDataURL('image/png');
+}
+/* Hand the colour layer back to RN to keep; for Photos, also the picture. */
 function requestSave(tag){
-  if(!window.ReactNativeWebView)return;
-  if(!ready){window.ReactNativeWebView.postMessage('skip:'+tag);return;}
-  window.ReactNativeWebView.postMessage('art:'+tag+':'+canvas.toDataURL('image/png'));
+  if(!ready){post('skip:'+tag);return;}
+  post('art:'+tag+':'+canvas.toDataURL('image/png'));
+  if(tag==='photo')post('photo:'+composite());
 }
 </script>
 </body></html>`;
@@ -323,7 +453,7 @@ export default function ColoringScreen() {
   const [brushIdx, setBrushIdx] = useState(1);
   const [mode,     setMode]     = useState<DrawMode>('fill');
 
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [pageArt,      setPageArt]      = useState<PageArt | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [canUndo,      setCanUndo]      = useState(false);
 
@@ -351,18 +481,28 @@ export default function ColoringScreen() {
     [toastOpacity]
   );
 
-  /* ── Load image for current page (saved artwork wins over blank line art) ── */
+  /* ── Load the current page: its line art, plus the child's colours if saved ── */
   useEffect(() => {
     let cancelled = false;
     canvasReady.current = false;
     setLoading(true);
-    setImageDataUrl(null);
+    setPageArt(null);
     setCanUndo(false);
     loadPage(pageIdx)
-      .then((url) => { if (!cancelled) { setImageDataUrl(url); setLoading(false); } })
+      .then((art) => { if (!cancelled) { setPageArt(art); setLoading(false); } })
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [pageIdx]);
+
+  /* Only ever show a page's own art. Right after a page turn, pageArt still
+     holds the previous page until the load above replaces it. The WebView sits
+     inside a 1pt border, so its page is 2pt narrower than the frame. */
+  const html = useMemo(
+    () => (pageArt && pageArt.idx === pageIdx
+      ? buildHtml(pageArt, PAGES[pageIdx].barriers, canvasSize - 2)
+      : null),
+    [pageArt, pageIdx, canvasSize]
+  );
 
   /* ── Sync settings to WebView when they change ── */
   useEffect(() => {
@@ -399,11 +539,14 @@ export default function ColoringScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  /* ── Clear — also discards the saved copy ── */
+  /* ── Clear — back to the blank page, and the saved copy goes too ──
+     This used to redraw the image the page had *opened* with, which was the
+     saved artwork whenever there was any, so Clear put the old colouring right
+     back. Now it whitens the colour layer, which never contains the lines.
+     It stays undoable until the page is left. */
   const handleClear = () => {
     webViewRef.current?.injectJavaScript('clearCanvas();true;');
-    deleteArt(pageIdx);
-    setCanUndo(false);
+    try { deleteArt(pageIdx); } catch { /* the next autosave overwrites it */ }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
@@ -428,8 +571,9 @@ export default function ColoringScreen() {
     webViewRef.current?.injectJavaScript("requestSave('photo');true;");
   }, [showToast]);
 
-  /* Hand the PNG that was just written to disk over to the photo library. */
-  const exportToPhotos = useCallback(async (idx: number) => {
+  /* Hand the finished picture (colours with the lines over them) to Photos. */
+  const exportToPhotos = useCallback(async (idx: number, dataUrl: string) => {
+    const out = exportFile(idx);
     try {
       /* writeOnly — the app adds a picture and never reads the library back. */
       const perm = await MediaLibrary.requestPermissionsAsync(true);
@@ -437,11 +581,14 @@ export default function ColoringScreen() {
         showToast('Photos is turned off — the picture is still here', 'information', 2800);
         return;
       }
-      await MediaLibrary.saveToLibraryAsync(artFile(idx).uri);
+      writePng(out, dataUrl);
+      await MediaLibrary.saveToLibraryAsync(out.uri);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       showToast('Saved to Photos!');
     } catch {
       showToast("Couldn't save to Photos — the picture is still here", 'information', 2800);
+    } finally {
+      try { if (out.exists) out.delete(); } catch { /* cache; the OS clears it */ }
     }
   }, [showToast]);
 
@@ -476,23 +623,18 @@ export default function ColoringScreen() {
       return;
     }
 
+    /* The colour layer, to keep. Saving is best-effort; never interrupt a
+       child mid-drawing. */
     if (msg.startsWith('art:')) {
       const sep = msg.indexOf(':', 4);
-      const tag = msg.slice(4, sep);
-      const dataUrl = msg.slice(sep + 1);
-      let saved = true;
-      try {
-        writeArt(pageIdx, dataUrl);
-      } catch {
-        /* Saving is best-effort; never interrupt a child mid-drawing. */
-        saved = false;
-      }
-      /* Only go to Photos with a file that really made it to disk. */
-      if (tag === 'photo') {
-        if (saved) void exportToPhotos(pageIdx);
-        else showToast("Couldn't save the picture — please try again", 'information', 2800);
-      }
+      try { writeArt(pageIdx, msg.slice(sep + 1)); } catch {}
       advancePending();
+      return;
+    }
+
+    /* The finished picture, sent only after Save passed the parental gate. */
+    if (msg.startsWith('photo:')) {
+      void exportToPhotos(pageIdx, msg.slice('photo:'.length));
     }
   }, [advancePending, exportToPhotos, pageIdx, showToast]);
 
@@ -651,16 +793,16 @@ export default function ColoringScreen() {
 
       {/* ── Canvas ── */}
       <View style={[styles.canvasWrap, { width: canvasSize, height: canvasSize, borderColor: colors.border }]}>
-        {loading || !imageDataUrl ? (
+        {loading || !html ? (
           <View style={styles.loader}>
             <ActivityIndicator size="large" color={colors.midPurple} />
             <Text style={[styles.loaderTxt, { color: colors.textMuted }]}>Loading page…</Text>
           </View>
         ) : (
           <WebView
-            key={`${pageIdx}-${imageDataUrl.slice(0, 30)}`}
+            key={`page-${pageIdx}`}
             ref={webViewRef}
-            source={{ html: buildHtml(imageDataUrl, canvasSize) }}
+            source={{ html }}
             style={styles.webView}
             scrollEnabled={false}
             bounces={false}
